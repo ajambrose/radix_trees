@@ -69,25 +69,14 @@ fn insert_inline() {
     assert_eq!(t.len(), 4);
     assert_eq!(t.get_exact(KeyMask::new(&a, 32).unwrap()).copied(), Some(0));
     assert_eq!(t.get_exact(KeyMask::new(&b, 32).unwrap()).copied(), Some(1));
-    assert_eq!(
-        t.get_exact(KeyMask::new(&ap, 31).unwrap()).copied(),
-        Some(2)
-    );
-    assert_eq!(
-        t.get_exact(KeyMask::new(&bp, 31).unwrap()).copied(),
-        Some(3)
-    );
+    assert_eq!(t.get_exact(KeyMask::new(&ap, 31).unwrap()).copied(), Some(2));
+    assert_eq!(t.get_exact(KeyMask::new(&bp, 31).unwrap()).copied(), Some(3));
 }
 
 #[test]
 fn branch_backtrack() {
-    let keys = [
-        (0xff000000, 8),
-        (0xff000000, 16),
-        (0xff000000, 24),
-        (0xff000000, 32),
-    ]
-    .map(|(k, m)| KeyMask::new(U32::new(k), m).unwrap());
+    let keys = [(0xff000000, 8), (0xff000000, 16), (0xff000000, 24), (0xff000000, 32)]
+        .map(|(k, m)| KeyMask::new(U32::new(k), m).unwrap());
     let vals = [0u32, 1, 2, 3];
     let mut expected: Vec<_> = keys.iter().cloned().zip(vals).collect();
     let mut t: TrieMap<_, _> = expected.iter().cloned().collect();
@@ -116,10 +105,7 @@ fn remove() {
     assert_eq!(t.insert(KeyMask::new(bp, 31).unwrap(), 3), None);
 
     assert_eq!(t.len(), 4);
-    assert_eq!(
-        t.get_exact(KeyMask::new(&ap, 31).unwrap()).copied(),
-        Some(2)
-    );
+    assert_eq!(t.get_exact(KeyMask::new(&ap, 31).unwrap()).copied(), Some(2));
     let km = KeyMask::new(&ap, 31).unwrap();
     assert_eq!(t.remove(km), Some((KeyMask::clone_borrowed(&km), 2u32)));
     assert_eq!(t.get_exact(KeyMask::new(&ap, 31).unwrap()), None);

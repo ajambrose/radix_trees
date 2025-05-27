@@ -45,10 +45,7 @@ impl<K: TrieKey> KeyMask<K> {
         K: Clone,
         B: TrieKey + Deref<Target = K>,
     {
-        Self {
-            key: K::clone(&other.key),
-            masklen: other.masklen,
-        }
+        Self { key: K::clone(&other.key), masklen: other.masklen }
     }
 
     pub fn copy_borrowed<B>(other: &KeyMask<B>) -> Self
@@ -56,29 +53,17 @@ impl<K: TrieKey> KeyMask<K> {
         K: Copy,
         B: TrieKey + Deref<Target = K>,
     {
-        Self {
-            key: *other.key,
-            masklen: other.masklen,
-        }
+        Self { key: *other.key, masklen: other.masklen }
     }
 }
 
 pub(crate) fn key_eq(lhs: &[u8], lhs_mask: u32, rhs: &[u8], rhs_mask: u32) -> bool {
-    if lhs_mask == rhs_mask {
-        branch_masklen(lhs, rhs) >= lhs_mask
-    } else {
-        false
-    }
+    if lhs_mask == rhs_mask { branch_masklen(lhs, rhs) >= lhs_mask } else { false }
 }
 
 impl<K: TrieKey, Q: TrieKey + Equivalent<K>> PartialEq<KeyMask<Q>> for KeyMask<K> {
     fn eq(&self, other: &KeyMask<Q>) -> bool {
-        key_eq(
-            self.key.key_bytes(),
-            self.masklen,
-            other.key.key_bytes(),
-            other.masklen,
-        )
+        key_eq(self.key.key_bytes(), self.masklen, other.key.key_bytes(), other.masklen)
     }
 }
 
@@ -93,31 +78,18 @@ impl<K: TrieKey, Q: TrieKey + Equivalent<K>> PartialOrd<KeyMask<Q>> for KeyMask<
                 O::Equal
             } else if lhs_mask < rhs_mask {
                 if branch_mask < lhs_mask {
-                    if branch_bit(lhs, branch_mask) {
-                        O::Greater
-                    } else {
-                        O::Less
-                    }
+                    if branch_bit(lhs, branch_mask) { O::Greater } else { O::Less }
                 } else {
                     O::Less
                 }
             } else if branch_mask < rhs_mask {
-                if branch_bit(lhs, branch_mask) {
-                    O::Greater
-                } else {
-                    O::Less
-                }
+                if branch_bit(lhs, branch_mask) { O::Greater } else { O::Less }
             } else {
                 O::Greater
             }
         }
 
-        Some(inner(
-            self.key.key_bytes(),
-            self.masklen,
-            other.key.key_bytes(),
-            other.masklen,
-        ))
+        Some(inner(self.key.key_bytes(), self.masklen, other.key.key_bytes(), other.masklen))
     }
 }
 

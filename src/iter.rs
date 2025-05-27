@@ -10,11 +10,7 @@ impl<K: TrieKey, V> IntoIterator for TrieMap<K, V> {
     fn into_iter(mut self) -> Self::IntoIter {
         let curr = std::mem::replace(&mut self.root, Link::null());
         let len = std::mem::replace(&mut self.len, 0);
-        IntoIter {
-            curr,
-            len,
-            _pd: PhantomData,
-        }
+        IntoIter { curr, len, _pd: PhantomData }
     }
 }
 
@@ -89,8 +85,7 @@ impl<K: TrieKey, V> FromIterator<(KeyMask<K>, V)> for TrieMap<K, V> {
 
 impl<K: TrieKey, V> Extend<(KeyMask<K>, V)> for TrieMap<K, V> {
     fn extend<T: IntoIterator<Item = (KeyMask<K>, V)>>(&mut self, iter: T) {
-        iter.into_iter()
-            .for_each(|(km, v)| drop(self.insert(km, v)));
+        iter.into_iter().for_each(|(km, v)| drop(self.insert(km, v)));
     }
 }
 
@@ -134,27 +129,16 @@ impl<'a, K: TrieKey, V> Iterator for Iter<'a, K, V> {
             return None;
         }
 
-        let mut curr = self
-            .curr
-            .get()
-            .expect("iterator length matches populated nodes");
+        let mut curr = self.curr.get().expect("iterator length matches populated nodes");
 
         let kv = curr.val.as_deref().unwrap_or_else(|| {
             self.curr = self.curr.next_val();
-            curr = self
-                .curr
-                .get()
-                .expect("iterator length matches populated nodes");
-            curr.val
-                .as_deref()
-                .expect("nonzero iterator length should find a node")
+            curr = self.curr.get().expect("iterator length matches populated nodes");
+            curr.val.as_deref().expect("nonzero iterator length should find a node")
         });
 
         // SAFETY: The presence of this key/mask in the trie means that it was already validated
-        let ret = Some((
-            unsafe { KeyMask::new_unchecked(&kv.0, curr.masklen) },
-            &kv.1,
-        ));
+        let ret = Some((unsafe { KeyMask::new_unchecked(&kv.0, curr.masklen) }, &kv.1));
         self.len -= 1;
 
         if self.len != 0 {
@@ -199,29 +183,18 @@ impl<'a, K: TrieKey, V> Iterator for IterMut<'a, K, V> {
             return None;
         }
 
-        let mut curr = self
-            .curr
-            .get_mut()
-            .expect("iterator length matches populated nodes");
+        let mut curr = self.curr.get_mut().expect("iterator length matches populated nodes");
 
         let kv = if curr.val.is_some() {
             curr.val.as_deref_mut().unwrap()
         } else {
             self.curr = self.curr.next_val();
-            curr = self
-                .curr
-                .get_mut()
-                .expect("iterator length matches populated nodes");
-            curr.val
-                .as_deref_mut()
-                .expect("nonzero iterator length should find a node")
+            curr = self.curr.get_mut().expect("iterator length matches populated nodes");
+            curr.val.as_deref_mut().expect("nonzero iterator length should find a node")
         };
 
         // SAFETY: The presence of this key/mask in the trie means that it was already validated
-        let ret = Some((
-            unsafe { KeyMask::new_unchecked(&kv.0, curr.masklen) },
-            &mut kv.1,
-        ));
+        let ret = Some((unsafe { KeyMask::new_unchecked(&kv.0, curr.masklen) }, &mut kv.1));
         self.len -= 1;
 
         if self.len != 0 {
@@ -257,9 +230,7 @@ where
     type Item = (KeyMask<K>, V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.it
-            .next()
-            .map(|(km, v)| (KeyMask::clone_borrowed(&km), v.clone()))
+        self.it.next().map(|(km, v)| (KeyMask::clone_borrowed(&km), v.clone()))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -299,9 +270,7 @@ where
     type Item = (KeyMask<K>, V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.it
-            .next()
-            .map(|(km, v)| (KeyMask::copy_borrowed(&km), *v))
+        self.it.next().map(|(km, v)| (KeyMask::copy_borrowed(&km), *v))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

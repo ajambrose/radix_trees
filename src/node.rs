@@ -17,14 +17,7 @@ impl<K: TrieKey, V> Node<K, V> {
         parent: Link<K, V>,
         is_right_child: bool,
     ) -> Self {
-        Self {
-            val,
-            masklen,
-            left: Link::null(),
-            right: Link::null(),
-            parent,
-            is_right_child,
-        }
+        Self { val, masklen, left: Link::null(), right: Link::null(), parent, is_right_child }
     }
 
     pub(crate) fn replace(&mut self, other_link: Link<K, V>) {
@@ -42,11 +35,7 @@ pub(crate) struct Link<K: TrieKey, V> {
 
 impl<K: TrieKey, V> std::fmt::Debug for Link<K, V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(
-            f,
-            "Link({:#018x})",
-            self.inner.map(|p| p.as_ptr() as usize).unwrap_or(0)
-        )
+        write!(f, "Link({:#018x})", self.inner.map(|p| p.as_ptr() as usize).unwrap_or(0))
     }
 }
 
@@ -60,9 +49,7 @@ impl<K: TrieKey, V> Copy for Link<K, V> {}
 
 impl<K: TrieKey, V> Link<K, V> {
     pub(crate) fn new(v: Box<Node<K, V>>) -> Self {
-        Self {
-            inner: Some(Box::leak(v).into()),
-        }
+        Self { inner: Some(Box::leak(v).into()) }
     }
 
     pub(crate) fn null() -> Self {

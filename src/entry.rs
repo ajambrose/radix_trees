@@ -26,16 +26,7 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
         is_right_child: bool,
         is_right_parent: bool,
     ) -> Self {
-        Self {
-            tree,
-            key,
-            masklen,
-            branch_masklen,
-            link,
-            parent,
-            is_right_child,
-            is_right_parent,
-        }
+        Self { tree, key, masklen, branch_masklen, link, parent, is_right_child, is_right_parent }
     }
 
     pub fn key(&self) -> &K {
@@ -57,11 +48,7 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
         macro_rules! add_child_link {
             ($Self:ident, $Link:ident) => {
                 if let Some(p) = $Self.parent.get_mut() {
-                    let c = if $Self.is_right_child {
-                        &mut p.right
-                    } else {
-                        &mut p.left
-                    };
+                    let c = if $Self.is_right_child { &mut p.right } else { &mut p.left };
                     *c = $Link;
                 } else {
                     assert!($Self.is_right_child); // root node always points "right"

@@ -33,9 +33,7 @@ macro_rules! impl_zerocopy_endians {
     }
 }
 
-impl_zerocopy_endians!(
-    F32, F64, I16, I32, I64, I128, Isize, U16, U32, U64, U128, Usize
-);
+impl_zerocopy_endians!(F32, F64, I16, I32, I64, I128, Isize, U16, U32, U64, U128, Usize);
 
 impl<K: IntoBytes + Immutable + TrieKey> TrieKey for zerocopy::Unalign<K> {
     fn key_bytes(&self) -> &[u8] {

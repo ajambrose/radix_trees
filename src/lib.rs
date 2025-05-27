@@ -34,11 +34,7 @@ impl<K: TrieKey, V> TrieMap<K, V> {
     pub fn clear(&mut self) {
         let curr = std::mem::replace(&mut self.root, Link::null());
         let len = std::mem::replace(&mut self.len, 0);
-        let _ = crate::iter::IntoIter {
-            curr,
-            len,
-            _pd: PhantomData,
-        };
+        let _ = crate::iter::IntoIter { curr, len, _pd: PhantomData };
     }
 
     fn descend<Q: TrieKey + Equivalent<K>>(&self, km: &KeyMask<Q>) -> (Link<K, V>, Link<K, V>) {
@@ -51,11 +47,8 @@ impl<K: TrieKey, V> TrieMap<K, V> {
             }
 
             parent = curr;
-            curr = if branch_bit(km.key().key_bytes(), node.masklen) {
-                node.right
-            } else {
-                node.left
-            };
+            curr =
+                if branch_bit(km.key().key_bytes(), node.masklen) { node.right } else { node.left };
         }
         (curr, parent)
     }
@@ -68,11 +61,8 @@ impl<K: TrieKey, V> TrieMap<K, V> {
                 break;
             }
 
-            curr = if branch_bit(km.key().key_bytes(), node.masklen) {
-                node.right
-            } else {
-                node.left
-            };
+            curr =
+                if branch_bit(km.key().key_bytes(), node.masklen) { node.right } else { node.left };
         }
         curr
     }
@@ -156,12 +146,7 @@ impl<K: TrieKey, V> TrieMap<K, V> {
     pub fn get_exact<Q: TrieKey + Equivalent<K>>(&self, km: KeyMask<Q>) -> Option<&V> {
         if let Some(node) = self.descend_shortcircuit(&km).get() {
             if let Some(val) = node.val.as_deref() {
-                if key_eq(
-                    km.key().key_bytes(),
-                    km.masklen(),
-                    val.0.key_bytes(),
-                    node.masklen,
-                ) {
+                if key_eq(km.key().key_bytes(), km.masklen(), val.0.key_bytes(), node.masklen) {
                     return Some(&val.1);
                 }
             }
@@ -187,12 +172,7 @@ impl<K: TrieKey, V> TrieMap<K, V> {
         let curr = self.descend_shortcircuit(&km);
         if let Some(node) = curr.get() {
             if let Some(val) = node.val.as_deref() {
-                if key_eq(
-                    km.key().key_bytes(),
-                    km.masklen(),
-                    val.0.key_bytes(),
-                    node.masklen,
-                ) {
+                if key_eq(km.key().key_bytes(), km.masklen(), val.0.key_bytes(), node.masklen) {
                     let e = OccupiedEntry::new(self, curr);
                     return Some(e.remove_entry());
                 }
@@ -203,29 +183,17 @@ impl<K: TrieKey, V> TrieMap<K, V> {
     }
 
     pub fn iter(&self) -> Iter<K, V> {
-        Iter {
-            curr: self.root,
-            len: self.len,
-            _pd: PhantomData,
-        }
+        Iter { curr: self.root, len: self.len, _pd: PhantomData }
     }
 
     pub fn iter_mut(&mut self) -> IterMut<K, V> {
-        IterMut {
-            curr: self.root,
-            len: self.len,
-            _pd: PhantomData,
-        }
+        IterMut { curr: self.root, len: self.len, _pd: PhantomData }
     }
 }
 
 impl<K: TrieKey, V> Default for TrieMap<K, V> {
     fn default() -> Self {
-        Self {
-            root: Link::null(),
-            len: 0,
-            _pd: PhantomData,
-        }
+        Self { root: Link::null(), len: 0, _pd: PhantomData }
     }
 }
 
