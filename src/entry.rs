@@ -1,7 +1,8 @@
 use crate::node::{Link, Node};
 use crate::{Equivalent, KeyMask, TrieKey, TrieMap};
-use std::borrow::Borrow;
-use std::mem;
+use alloc::boxed::Box;
+use core::borrow::Borrow;
+use core::mem;
 
 pub(super) struct VacantEntryCommon<'a, K: TrieKey, V> {
     tree: &'a mut TrieMap<K, V>,

@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 #[cfg(feature = "zerocopy")]
 mod zerocopy_trait;
@@ -28,21 +28,42 @@ impl TrieKey for str {
     }
 }
 
-impl TrieKey for String {
+impl TrieKey for alloc::string::String {
     fn key_bytes(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
-impl<K: TrieKey + ?Sized> TrieKey for Box<K> {
+impl TrieKey for core::ffi::CStr {
+    fn key_bytes(&self) -> &[u8] {
+        self.to_bytes()
+    }
+}
+
+impl TrieKey for alloc::ffi::CString {
+    fn key_bytes(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
+impl<K: TrieKey + ?Sized> TrieKey for alloc::boxed::Box<K> {
     fn key_bytes(&self) -> &[u8] {
         K::key_bytes(self)
     }
 }
 
-impl<K: TrieKey + ?Sized> TrieKey for std::sync::Arc<K> {
+impl<K: TrieKey + ?Sized> TrieKey for alloc::sync::Arc<K> {
     fn key_bytes(&self) -> &[u8] {
         K::key_bytes(self)
+    }
+}
+
+impl<K: TrieKey> TrieKey for alloc::vec::Vec<K>
+where
+    [K]: TrieKey,
+{
+    fn key_bytes(&self) -> &[u8] {
+        self.as_slice().key_bytes()
     }
 }
 

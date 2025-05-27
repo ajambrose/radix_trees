@@ -1,5 +1,6 @@
 use ptries::{KeyMask, TrieMap};
 use zerocopy::byteorder::big_endian::U32;
+extern crate std;
 
 #[test]
 fn default_iter() {
@@ -140,5 +141,17 @@ fn trie_iter_mut() {
     let v: Vec<_> = t.iter_mut().collect();
     v.into_iter().for_each(|(_, n)| *n *= 2);
     assert_eq!(t.iter().copied().collect::<Vec<_>>(), expected);
+    assert_eq!(t.into_iter().collect::<Vec<_>>(), expected);
+}
+
+#[test]
+fn strings() {
+    let keys = [("Hello", 40), ("Hello world!", 96), ("Ferris", 48), ("Ferris Bueller", 112)]
+        .map(|(k, m)| KeyMask::new(std::string::String::from(k), m).unwrap());
+    let vals = [0u32, 1, 2, 3];
+    let mut expected: Vec<_> = keys.iter().cloned().zip(vals).collect();
+    let t: TrieMap<_, _> = expected.iter().cloned().collect();
+    expected.sort_by(|(km1, _), (km2, _)| km1.cmp(km2));
+    assert_eq!(t.iter().cloned().collect::<Vec<_>>(), expected);
     assert_eq!(t.into_iter().collect::<Vec<_>>(), expected);
 }

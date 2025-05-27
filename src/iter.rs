@@ -1,15 +1,15 @@
 use crate::node::Link;
 use crate::utils::KeyMask;
 use crate::{TrieKey, TrieMap};
-use std::{iter::FusedIterator, marker::PhantomData};
+use core::{iter::FusedIterator, marker::PhantomData};
 
 impl<K: TrieKey, V> IntoIterator for TrieMap<K, V> {
     type IntoIter = IntoIter<K, V>;
     type Item = (KeyMask<K>, V);
 
     fn into_iter(mut self) -> Self::IntoIter {
-        let curr = std::mem::replace(&mut self.root, Link::null());
-        let len = std::mem::replace(&mut self.len, 0);
+        let curr = core::mem::replace(&mut self.root, Link::null());
+        let len = core::mem::replace(&mut self.len, 0);
         IntoIter { curr, len, _pd: PhantomData }
     }
 }
@@ -46,9 +46,9 @@ impl<K: TrieKey, V> Iterator for IntoIter<K, V> {
                 let next = node.parent;
                 if let Some(p) = next.get_mut() {
                     if node.is_right_child {
-                        (next, std::mem::replace(&mut p.right, Link::null()))
+                        (next, core::mem::replace(&mut p.right, Link::null()))
                     } else {
-                        (next, std::mem::replace(&mut p.left, Link::null()))
+                        (next, core::mem::replace(&mut p.left, Link::null()))
                     }
                 } else {
                     (next, self.curr)

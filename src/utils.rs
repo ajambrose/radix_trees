@@ -1,5 +1,5 @@
 use crate::{Equivalent, TrieKey};
-use std::ops::Deref;
+use core::ops::Deref;
 
 pub const MAX_KEY_LEN_BYTES: usize = (u32::MAX as usize) >> 3;
 
@@ -70,9 +70,9 @@ impl<K: TrieKey, Q: TrieKey + Equivalent<K>> PartialEq<KeyMask<Q>> for KeyMask<K
 impl<K: TrieKey> Eq for KeyMask<K> {}
 
 impl<K: TrieKey, Q: TrieKey + Equivalent<K>> PartialOrd<KeyMask<Q>> for KeyMask<K> {
-    fn partial_cmp(&self, other: &KeyMask<Q>) -> Option<std::cmp::Ordering> {
-        fn inner(lhs: &[u8], lhs_mask: u32, rhs: &[u8], rhs_mask: u32) -> std::cmp::Ordering {
-            use std::cmp::Ordering as O;
+    fn partial_cmp(&self, other: &KeyMask<Q>) -> Option<core::cmp::Ordering> {
+        fn inner(lhs: &[u8], lhs_mask: u32, rhs: &[u8], rhs_mask: u32) -> core::cmp::Ordering {
+            use core::cmp::Ordering as O;
             let branch_mask = branch_masklen(lhs, rhs);
             if lhs_mask == rhs_mask && branch_mask >= lhs_mask {
                 O::Equal
@@ -94,7 +94,7 @@ impl<K: TrieKey, Q: TrieKey + Equivalent<K>> PartialOrd<KeyMask<Q>> for KeyMask<
 }
 
 impl<K: TrieKey> Ord for KeyMask<K> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         // SAFETY: partial_cmp always returns `Some`
         unsafe { self.partial_cmp(other).unwrap_unchecked() }
     }
@@ -103,8 +103,8 @@ impl<K: TrieKey> Ord for KeyMask<K> {
 #[derive(Debug)]
 pub struct KeyMaskError;
 
-impl std::fmt::Display for KeyMaskError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+impl core::fmt::Display for KeyMaskError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         write!(f, "Key / masklen combination is invalid")
     }
 }
@@ -139,7 +139,7 @@ pub(crate) fn branch_bit(key: &[u8], masklen: u32) -> bool {
 pub(crate) fn branch_masklen(a: &[u8], b: &[u8]) -> u32 {
     let Some((idx, (b1, b2))) = a.iter().zip(b).enumerate().find(|(_, (a, b))| a != b) else {
         // conversion is safe as any keys passed here were already validated
-        return (std::cmp::min(a.len(), b.len()) as u32) << 3;
+        return (core::cmp::min(a.len(), b.len()) as u32) << 3;
     };
 
     let n = b1 ^ b2;
@@ -176,12 +176,12 @@ mod test {
         assert!(y > w);
         assert!(v > y);
         assert!(y < v);
-        assert_eq!(y.cmp(&y), std::cmp::Ordering::Equal);
+        assert_eq!(y.cmp(&y), core::cmp::Ordering::Equal);
     }
 
     #[test]
     fn err_display() {
-        let s = format!("{}", KeyMaskError);
+        let s = alloc::format!("{}", KeyMaskError);
         assert_eq!(s, "Key / masklen combination is invalid");
     }
 

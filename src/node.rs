@@ -1,5 +1,6 @@
 use crate::TrieKey;
-use std::ptr::NonNull;
+use alloc::boxed::Box;
+use core::ptr::NonNull;
 
 pub(crate) struct Node<K: TrieKey, V> {
     pub(crate) val: Option<Box<(K, V)>>,
@@ -22,7 +23,7 @@ impl<K: TrieKey, V> Node<K, V> {
 
     pub(crate) fn replace(&mut self, other_link: Link<K, V>) {
         let other = other_link.get_mut().unwrap();
-        std::mem::swap(self, other);
+        core::mem::swap(self, other);
         self.parent = other.parent;
         self.is_right_child = other.is_right_child;
         other_link.free();
@@ -33,8 +34,8 @@ pub(crate) struct Link<K: TrieKey, V> {
     inner: Option<NonNull<Node<K, V>>>,
 }
 
-impl<K: TrieKey, V> std::fmt::Debug for Link<K, V> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl<K: TrieKey, V> core::fmt::Debug for Link<K, V> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         write!(f, "Link({:#018x})", self.inner.map(|p| p.as_ptr() as usize).unwrap_or(0))
     }
 }

@@ -1,9 +1,12 @@
+#![no_std]
+
 mod entry;
 mod iter;
 mod key_trait;
 mod node;
 mod utils;
 
+extern crate alloc;
 use crate::entry::{
     Entry, EntryRef, OccupiedEntry, VacantEntry, VacantEntryCommon, VacantEntryRef,
 };
@@ -12,7 +15,7 @@ pub use crate::key_trait::{Equivalent, TrieKey};
 use crate::node::Link;
 pub use crate::utils::{KeyMask, MAX_KEY_LEN_BYTES, key_masklen_check};
 use crate::utils::{branch_bit, branch_masklen, key_eq};
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 pub struct TrieMap<K: TrieKey, V> {
     root: Link<K, V>,
@@ -35,8 +38,8 @@ impl<K: TrieKey, V> TrieMap<K, V> {
     }
 
     pub fn clear(&mut self) {
-        let curr = std::mem::replace(&mut self.root, Link::null());
-        let len = std::mem::replace(&mut self.len, 0);
+        let curr = core::mem::replace(&mut self.root, Link::null());
+        let len = core::mem::replace(&mut self.len, 0);
         let _ = crate::iter::IntoIter { curr, len, _pd: PhantomData };
     }
 
@@ -145,7 +148,7 @@ impl<K: TrieKey, V> TrieMap<K, V> {
             }
 
             // prepare for backtrack
-            let branch_masklen = std::cmp::min(masklen, branch_masklen);
+            let branch_masklen = core::cmp::min(masklen, branch_masklen);
             let right = branch_bit(val.0.key_bytes(), branch_masklen);
             (branch_masklen, right)
         } else if let Some(p) = parent.get() {
