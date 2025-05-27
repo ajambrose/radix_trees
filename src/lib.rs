@@ -85,7 +85,11 @@ impl<K: TrieKey, V> TrieMap<K, V> {
         None
     }
 
-    pub fn insert(&mut self, km: KeyMask<K>, val: V) -> Option<V> {
+    pub fn insert(&mut self, key: K, val: V) -> Option<V> {
+        self.insert_masked(KeyMask::new_host(key), val)
+    }
+
+    pub fn insert_masked(&mut self, km: KeyMask<K>, val: V) -> Option<V> {
         match self.entry(km) {
             Entry::Vacant(e) => {
                 e.insert_entry(val);

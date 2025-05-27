@@ -15,7 +15,7 @@ fn default_iter() {
 #[test]
 fn insert_one() {
     let mut t = TrieMap::<u32, u32>::default();
-    assert_eq!(t.insert(KeyMask::new(1, 32).unwrap(), 2), None);
+    assert_eq!(t.insert(1, 2), None);
     assert_eq!(t.len(), 1);
     assert_eq!(t.get_exact(KeyMask::new(1, 32).unwrap()).copied(), Some(2));
     assert_eq!(t.get_exact(KeyMask::new(2, 32).unwrap()).copied(), None);
@@ -24,8 +24,8 @@ fn insert_one() {
 #[test]
 fn insert_two_lr() {
     let mut t = TrieMap::<u32, u32>::default();
-    assert_eq!(t.insert(KeyMask::new(2, 32).unwrap(), 4), None);
-    assert_eq!(t.insert(KeyMask::new(3, 32).unwrap(), 6), None);
+    assert_eq!(t.insert(2, 4), None);
+    assert_eq!(t.insert(3, 6), None);
     assert_eq!(t.len(), 2);
     assert_eq!(t.get_exact(KeyMask::new(2, 32).unwrap()).copied(), Some(4));
     assert_eq!(t.get_exact(KeyMask::new(3, 32).unwrap()).copied(), Some(6));
@@ -34,8 +34,8 @@ fn insert_two_lr() {
 #[test]
 fn insert_two_rl() {
     let mut t = TrieMap::<u32, u32>::default();
-    assert_eq!(t.insert(KeyMask::new(3, 32).unwrap(), 4), None);
-    assert_eq!(t.insert(KeyMask::new(2, 32).unwrap(), 6), None);
+    assert_eq!(t.insert(3, 4), None);
+    assert_eq!(t.insert(2, 6), None);
     assert_eq!(t.len(), 2);
     assert_eq!(t.get_exact(KeyMask::new(2, 32).unwrap()).copied(), Some(6));
     assert_eq!(t.get_exact(KeyMask::new(3, 32).unwrap()).copied(), Some(4));
@@ -46,9 +46,9 @@ fn branch_to_val() {
     let a = U32::new(2);
     let b = U32::new(3);
     let mut t = TrieMap::<U32, u32>::default();
-    assert_eq!(t.insert(KeyMask::new(a, 32).unwrap(), 4), None);
-    assert_eq!(t.insert(KeyMask::new(b, 32).unwrap(), 6), None);
-    assert_eq!(t.insert(KeyMask::new(a, 31).unwrap(), 8), None);
+    assert_eq!(t.insert_masked(KeyMask::new(a, 32).unwrap(), 4), None);
+    assert_eq!(t.insert_masked(KeyMask::new(b, 32).unwrap(), 6), None);
+    assert_eq!(t.insert_masked(KeyMask::new(a, 31).unwrap(), 8), None);
     assert_eq!(t.len(), 3);
     assert_eq!(t.get_exact(KeyMask::new(&a, 32).unwrap()).copied(), Some(4));
     assert_eq!(t.get_exact(KeyMask::new(&b, 32).unwrap()).copied(), Some(6));
@@ -63,10 +63,10 @@ fn insert_inline() {
     let bp = U32::new(0x01000000);
     let mut t = TrieMap::<U32, u32>::default();
 
-    assert_eq!(t.insert(KeyMask::new(a, 32).unwrap(), 0), None);
-    assert_eq!(t.insert(KeyMask::new(b, 32).unwrap(), 1), None);
-    assert_eq!(t.insert(KeyMask::new(ap, 31).unwrap(), 2), None);
-    assert_eq!(t.insert(KeyMask::new(bp, 31).unwrap(), 3), None);
+    assert_eq!(t.insert_masked(KeyMask::new(a, 32).unwrap(), 0), None);
+    assert_eq!(t.insert_masked(KeyMask::new(b, 32).unwrap(), 1), None);
+    assert_eq!(t.insert_masked(KeyMask::new(ap, 31).unwrap(), 2), None);
+    assert_eq!(t.insert_masked(KeyMask::new(bp, 31).unwrap(), 3), None);
     assert_eq!(t.len(), 4);
     assert_eq!(t.get_exact(KeyMask::new(&a, 32).unwrap()).copied(), Some(0));
     assert_eq!(t.get_exact(KeyMask::new(&b, 32).unwrap()).copied(), Some(1));
@@ -87,8 +87,8 @@ fn branch_backtrack() {
     let km2 = KeyMask::new(U32::new(0xff010080), 32).unwrap();
     expected.push((km1, 5));
     expected.push((km2, 6));
-    assert_eq!(t.insert(km1, 5), None);
-    assert_eq!(t.insert(km2, 6), None);
+    assert_eq!(t.insert_masked(km1, 5), None);
+    assert_eq!(t.insert_masked(km2, 6), None);
     assert_eq!(t.into_iter().collect::<Vec<_>>(), expected);
 }
 
@@ -100,10 +100,10 @@ fn remove() {
     let bp = U32::new(0x01000000);
     let mut t = TrieMap::<U32, u32>::default();
 
-    assert_eq!(t.insert(KeyMask::new(a, 32).unwrap(), 0), None);
-    assert_eq!(t.insert(KeyMask::new(b, 32).unwrap(), 1), None);
-    assert_eq!(t.insert(KeyMask::new(ap, 31).unwrap(), 2), None);
-    assert_eq!(t.insert(KeyMask::new(bp, 31).unwrap(), 3), None);
+    assert_eq!(t.insert_masked(KeyMask::new(a, 32).unwrap(), 0), None);
+    assert_eq!(t.insert_masked(KeyMask::new(b, 32).unwrap(), 1), None);
+    assert_eq!(t.insert_masked(KeyMask::new(ap, 31).unwrap(), 2), None);
+    assert_eq!(t.insert_masked(KeyMask::new(bp, 31).unwrap(), 3), None);
 
     assert_eq!(t.len(), 4);
     assert_eq!(t.get_exact(KeyMask::new(&ap, 31).unwrap()).copied(), Some(2));
@@ -146,8 +146,8 @@ fn trie_iter_mut() {
 
 #[test]
 fn strings() {
-    let keys = [("Hello", 40), ("Hello world!", 96), ("Ferris", 48), ("Ferris Bueller", 112)]
-        .map(|(k, m)| KeyMask::new(std::string::String::from(k), m).unwrap());
+    let keys = ["Hello", "Hello world!", "Ferris", "Ferris Bueller"]
+        .map(|s| KeyMask::new_host(std::string::String::from(s)));
     let vals = [0u32, 1, 2, 3];
     let mut expected: Vec<_> = keys.iter().cloned().zip(vals).collect();
     let t: TrieMap<_, _> = expected.iter().cloned().collect();

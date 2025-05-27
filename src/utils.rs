@@ -17,6 +17,12 @@ impl<K: TrieKey> KeyMask<K> {
         Ok(Self { key, masklen })
     }
 
+    pub fn new_host(key: K) -> Self {
+        let masklen =
+            key_len_bits(key.key_bytes()).expect("key length does not exceed MAX_KEY_LIN_BYTES");
+        Self { key, masklen }
+    }
+
     /// Create a [`KeyMask`] without validating the inputs
     ///
     /// # Safety
@@ -109,14 +115,21 @@ impl core::fmt::Display for KeyMaskError {
     }
 }
 
-pub fn key_masklen_check(key: &[u8], masklen: u32) -> bool {
+fn key_len_bits(key: &[u8]) -> Option<u32> {
     let key_len = key.len();
-    if key_len > MAX_KEY_LEN_BYTES {
-        return false;
+    if key_len <= MAX_KEY_LEN_BYTES {
+        // conversion is safe since bounds were already checked
+        Some((key_len as u32) << 3)
+    } else {
+        None
     }
+}
 
-    // conversion is safe since bounds were already checked
-    let max_mask = (key_len as u32) << 3;
+pub fn key_masklen_check(key: &[u8], masklen: u32) -> bool {
+    let Some(max_mask) = key_len_bits(key) else {
+        return false;
+    };
+
     if masklen == max_mask {
         // a mask that covers the whole key is correct by definition
         return true;

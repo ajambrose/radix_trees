@@ -85,7 +85,7 @@ impl<K: TrieKey, V> FromIterator<(KeyMask<K>, V)> for TrieMap<K, V> {
 
 impl<K: TrieKey, V> Extend<(KeyMask<K>, V)> for TrieMap<K, V> {
     fn extend<T: IntoIterator<Item = (KeyMask<K>, V)>>(&mut self, iter: T) {
-        iter.into_iter().for_each(|(km, v)| drop(self.insert(km, v)));
+        iter.into_iter().for_each(|(km, v)| drop(self.insert_masked(km, v)));
     }
 }
 
