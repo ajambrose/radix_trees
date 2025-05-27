@@ -1,0 +1,53 @@
+use std::borrow::Borrow;
+
+#[cfg(feature = "zerocopy")]
+mod zerocopy_trait;
+
+#[cfg(not(feature = "zerocopy"))]
+mod unsafe_trait;
+
+/// Trait definition for keys which are suitable to use in a [`TrieMap`](crate::TrieMap).
+///
+/// When the `zerocopy` feature is included, this trait leverages [`zerocopy`] to offload unsafe
+/// code and provide more blanket implementations for things like arrays and slices of data.
+/// When `zerocopy` is not included, only basic sized primitives (plus slices and arrays of primitives)
+/// are implemented.
+pub trait TrieKey {
+    fn key_bytes(&self) -> &[u8];
+}
+
+pub trait Equivalent<K: ?Sized> {}
+
+impl<K: TrieKey, Q: TrieKey + Borrow<K>> Equivalent<K> for Q {}
+
+// The below don't change based on zerocopy or not, so they can be here
+
+impl TrieKey for str {
+    fn key_bytes(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
+impl TrieKey for String {
+    fn key_bytes(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
+impl<K: TrieKey + ?Sized> TrieKey for Box<K> {
+    fn key_bytes(&self) -> &[u8] {
+        K::key_bytes(self)
+    }
+}
+
+impl<K: TrieKey + ?Sized> TrieKey for std::sync::Arc<K> {
+    fn key_bytes(&self) -> &[u8] {
+        K::key_bytes(self)
+    }
+}
+
+impl<K: TrieKey + ?Sized> TrieKey for &K {
+    fn key_bytes(&self) -> &[u8] {
+        (**self).key_bytes()
+    }
+}

@@ -1,0 +1,17 @@
+[package]
+name = "ptries"
+version = "0.1.0"
+edition = "2024"
+
+[lints.clippy]
+"undocumented_unsafe_blocks" = "warn"
+
+[features]
+default = ["zerocopy"]
+zerocopy = ["dep:zerocopy"]
+
+[dependencies]
+zerocopy = { version = "0.8", optional = true, default-features = false }
+
+[dev-dependencies]
+zerocopy = { version = "0.8", default-features = false }
