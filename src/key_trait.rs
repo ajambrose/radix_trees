@@ -12,7 +12,7 @@ mod unsafe_trait;
 /// Phrased differently, for a non-mutable `T`, [`key_bytes`](TrieKey::key_bytes) must always return the
 /// same value for the lifetime of that `T`.
 ///
-/// When the `zerocopy` feature is included, this crate leverages [`zerocopy`] to offload unsafe
+/// When the `zerocopy` feature is included, this crate leverages [`zerocopy`](https://docs.rs/zerocopy) to offload unsafe
 /// code and provide more blanket implementations for things like arrays and slices of data.
 /// When `zerocopy` is not included, only basic sized primitives (plus slices and arrays of primitives)
 /// are implemented.
