@@ -17,14 +17,14 @@ pub use crate::utils::{KeyMask, MAX_KEY_LEN_BYTES, key_masklen_check};
 use crate::utils::{branch_bit, branch_masklen, key_eq};
 use core::marker::PhantomData;
 
-pub struct TrieMap<K: TrieKey, V> {
+pub struct PTreeMap<K: TrieKey, V> {
     root: Link<K, V>,
     len: usize,
     _pd: PhantomData<(K, V)>,
 }
 
 // Public API
-impl<K: TrieKey, V> TrieMap<K, V> {
+impl<K: TrieKey, V> PTreeMap<K, V> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -134,7 +134,7 @@ impl<K: TrieKey, V> TrieMap<K, V> {
 }
 
 // Private API
-impl<K: TrieKey, V> TrieMap<K, V> {
+impl<K: TrieKey, V> PTreeMap<K, V> {
     fn entry_common(
         &mut self,
         key: &[u8],
@@ -240,13 +240,13 @@ impl<K: TrieKey, V> TrieMap<K, V> {
     }
 }
 
-impl<K: TrieKey, V> Default for TrieMap<K, V> {
+impl<K: TrieKey, V> Default for PTreeMap<K, V> {
     fn default() -> Self {
         Self { root: Link::null(), len: 0, _pd: PhantomData }
     }
 }
 
-impl<K: TrieKey, V> Drop for TrieMap<K, V> {
+impl<K: TrieKey, V> Drop for PTreeMap<K, V> {
     fn drop(&mut self) {
         self.clear();
     }

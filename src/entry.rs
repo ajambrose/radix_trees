@@ -1,11 +1,11 @@
 use crate::node::{Link, Node};
-use crate::{Equivalent, KeyMask, TrieKey, TrieMap};
+use crate::{Equivalent, KeyMask, PTreeMap, TrieKey};
 use alloc::boxed::Box;
 use core::borrow::Borrow;
 use core::mem;
 
 pub(super) struct VacantEntryCommon<'a, K: TrieKey, V> {
-    tree: &'a mut TrieMap<K, V>,
+    tree: &'a mut PTreeMap<K, V>,
     masklen: u32,
     branch_masklen: u32,
     link: Link<K, V>,
@@ -16,7 +16,7 @@ pub(super) struct VacantEntryCommon<'a, K: TrieKey, V> {
 
 impl<'a, K: TrieKey, V> VacantEntryCommon<'a, K, V> {
     pub(super) fn new(
-        tree: &'a mut TrieMap<K, V>,
+        tree: &'a mut PTreeMap<K, V>,
         masklen: u32,
         branch_masklen: u32,
         link: Link<K, V>,
@@ -42,7 +42,7 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
         &self.key
     }
 
-    fn into_occupied(tree: &'a mut TrieMap<K, V>, link: Link<K, V>) -> OccupiedEntry<'a, K, V> {
+    fn into_occupied(tree: &'a mut PTreeMap<K, V>, link: Link<K, V>) -> OccupiedEntry<'a, K, V> {
         let Some(node) = link.get() else {
             panic!("Tried to convert an unoccupied VacantEntry into an OccupiedEntry");
         };
@@ -197,12 +197,12 @@ where
 }
 
 pub struct OccupiedEntry<'a, K: TrieKey, V> {
-    tree: &'a mut TrieMap<K, V>,
+    tree: &'a mut PTreeMap<K, V>,
     link: Link<K, V>,
 }
 
 impl<'a, K: TrieKey, V> OccupiedEntry<'a, K, V> {
-    pub(super) fn new(tree: &'a mut TrieMap<K, V>, link: Link<K, V>) -> Self {
+    pub(super) fn new(tree: &'a mut PTreeMap<K, V>, link: Link<K, V>) -> Self {
         Self { tree, link }
     }
 

@@ -1,10 +1,10 @@
-use radix_trees::{KeyMask, TrieMap};
+use radix_trees::{KeyMask, PTreeMap};
 use zerocopy::byteorder::big_endian::U32;
 extern crate std;
 
 #[test]
 fn default_iter() {
-    let t = TrieMap::<u32, u32>::default();
+    let t = PTreeMap::<u32, u32>::default();
     let i = t.iter();
     assert_eq!(i.count(), 0);
 
@@ -14,7 +14,7 @@ fn default_iter() {
 
 #[test]
 fn insert_one() {
-    let mut t = TrieMap::<u32, u32>::default();
+    let mut t = PTreeMap::<u32, u32>::default();
     assert_eq!(t.insert(1, 2), None);
     assert_eq!(t.len(), 1);
     assert_eq!(t.get_exact(KeyMask::new(1, 32).unwrap()).copied(), Some(2));
@@ -23,7 +23,7 @@ fn insert_one() {
 
 #[test]
 fn insert_two_lr() {
-    let mut t = TrieMap::<u32, u32>::default();
+    let mut t = PTreeMap::<u32, u32>::default();
     assert_eq!(t.insert(2, 4), None);
     assert_eq!(t.insert(3, 6), None);
     assert_eq!(t.len(), 2);
@@ -33,7 +33,7 @@ fn insert_two_lr() {
 
 #[test]
 fn insert_two_rl() {
-    let mut t = TrieMap::<u32, u32>::default();
+    let mut t = PTreeMap::<u32, u32>::default();
     assert_eq!(t.insert(3, 4), None);
     assert_eq!(t.insert(2, 6), None);
     assert_eq!(t.len(), 2);
@@ -45,7 +45,7 @@ fn insert_two_rl() {
 fn branch_to_val() {
     let a = U32::new(2);
     let b = U32::new(3);
-    let mut t = TrieMap::<U32, u32>::default();
+    let mut t = PTreeMap::<U32, u32>::default();
     assert_eq!(t.insert_masked(KeyMask::new(a, 32).unwrap(), 4), None);
     assert_eq!(t.insert_masked(KeyMask::new(b, 32).unwrap(), 6), None);
     assert_eq!(t.insert_masked(KeyMask::new(a, 31).unwrap(), 8), None);
@@ -61,7 +61,7 @@ fn insert_inline() {
     let ap = U32::new(0x00000000);
     let b = U32::new(0x01000001);
     let bp = U32::new(0x01000000);
-    let mut t = TrieMap::<U32, u32>::default();
+    let mut t = PTreeMap::<U32, u32>::default();
 
     assert_eq!(t.insert_masked(KeyMask::new(a, 32).unwrap(), 0), None);
     assert_eq!(t.insert_masked(KeyMask::new(b, 32).unwrap(), 1), None);
@@ -80,7 +80,7 @@ fn branch_backtrack() {
         .map(|(k, m)| KeyMask::new(U32::new(k), m).unwrap());
     let vals = [0u32, 1, 2, 3];
     let mut expected: Vec<_> = keys.iter().cloned().zip(vals).collect();
-    let mut t: TrieMap<_, _> = expected.iter().cloned().collect();
+    let mut t: PTreeMap<_, _> = expected.iter().cloned().collect();
     // reaches 255/32 then backtracks
     let km1 = KeyMask::new(U32::new(0xff001100), 32).unwrap();
     // takes empty right branch from 255/24 then backtracks
@@ -98,7 +98,7 @@ fn remove() {
     let ap = U32::new(0x00000000);
     let b = U32::new(0x01000001);
     let bp = U32::new(0x01000000);
-    let mut t = TrieMap::<U32, u32>::default();
+    let mut t = PTreeMap::<U32, u32>::default();
 
     assert_eq!(t.insert_masked(KeyMask::new(a, 32).unwrap(), 0), None);
     assert_eq!(t.insert_masked(KeyMask::new(b, 32).unwrap(), 1), None);
@@ -119,7 +119,7 @@ fn trie_iter() {
     let vals = [0u32, 1, 2, 3];
     let expected: Vec<_> = keys.iter().cloned().zip(vals).collect();
 
-    let t: TrieMap<_, _> = expected.iter().cloned().collect();
+    let t: PTreeMap<_, _> = expected.iter().cloned().collect();
     assert_eq!(t.len(), 4);
     assert_eq!(t.iter().cloned().collect::<Vec<_>>(), expected);
     assert_eq!(t.into_iter().collect::<Vec<_>>(), expected);
@@ -132,7 +132,7 @@ fn trie_iter_mut() {
     let vals = [0u32, 1, 2, 3];
     let mut expected: Vec<_> = keys.iter().cloned().zip(vals).collect();
 
-    let mut t: TrieMap<_, _> = expected.iter().cloned().collect();
+    let mut t: PTreeMap<_, _> = expected.iter().cloned().collect();
     expected.iter_mut().for_each(|(_, n)| *n *= 2);
     assert_eq!(t.len(), 4);
 
@@ -150,7 +150,7 @@ fn strings() {
         .map(|s| KeyMask::new_host(std::string::String::from(s)));
     let vals = [0u32, 1, 2, 3];
     let mut expected: Vec<_> = keys.iter().cloned().zip(vals).collect();
-    let t: TrieMap<_, _> = expected.iter().cloned().collect();
+    let t: PTreeMap<_, _> = expected.iter().cloned().collect();
     expected.sort_by(|(km1, _), (km2, _)| km1.cmp(km2));
     assert_eq!(t.iter().cloned().collect::<Vec<_>>(), expected);
     assert_eq!(t.into_iter().collect::<Vec<_>>(), expected);

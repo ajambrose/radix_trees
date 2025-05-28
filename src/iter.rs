@@ -1,9 +1,9 @@
 use crate::node::Link;
 use crate::utils::KeyMask;
-use crate::{TrieKey, TrieMap};
+use crate::{PTreeMap, TrieKey};
 use core::{iter::FusedIterator, marker::PhantomData};
 
-impl<K: TrieKey, V> IntoIterator for TrieMap<K, V> {
+impl<K: TrieKey, V> IntoIterator for PTreeMap<K, V> {
     type IntoIter = IntoIter<K, V>;
     type Item = (KeyMask<K>, V);
 
@@ -75,21 +75,21 @@ impl<K: TrieKey, V> ExactSizeIterator for IntoIter<K, V> {
 
 impl<K: TrieKey, V> FusedIterator for IntoIter<K, V> {}
 
-impl<K: TrieKey, V> FromIterator<(KeyMask<K>, V)> for TrieMap<K, V> {
+impl<K: TrieKey, V> FromIterator<(KeyMask<K>, V)> for PTreeMap<K, V> {
     fn from_iter<T: IntoIterator<Item = (KeyMask<K>, V)>>(iter: T) -> Self {
-        let mut trie = TrieMap::new();
-        trie.extend(iter);
-        trie
+        let mut t = PTreeMap::new();
+        t.extend(iter);
+        t
     }
 }
 
-impl<K: TrieKey, V> Extend<(KeyMask<K>, V)> for TrieMap<K, V> {
+impl<K: TrieKey, V> Extend<(KeyMask<K>, V)> for PTreeMap<K, V> {
     fn extend<T: IntoIterator<Item = (KeyMask<K>, V)>>(&mut self, iter: T) {
         iter.into_iter().for_each(|(km, v)| drop(self.insert_masked(km, v)));
     }
 }
 
-impl<'a, K: TrieKey, V> IntoIterator for &'a TrieMap<K, V> {
+impl<'a, K: TrieKey, V> IntoIterator for &'a PTreeMap<K, V> {
     type IntoIter = Iter<'a, K, V>;
     type Item = (KeyMask<&'a K>, &'a V);
 
@@ -161,7 +161,7 @@ impl<K: TrieKey, V> ExactSizeIterator for Iter<'_, K, V> {
 
 impl<K: TrieKey, V> FusedIterator for Iter<'_, K, V> {}
 
-impl<'a, K: TrieKey, V> IntoIterator for &'a mut TrieMap<K, V> {
+impl<'a, K: TrieKey, V> IntoIterator for &'a mut PTreeMap<K, V> {
     type IntoIter = IterMut<'a, K, V>;
     type Item = (KeyMask<&'a K>, &'a mut V);
 
