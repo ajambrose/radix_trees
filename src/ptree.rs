@@ -1,5 +1,5 @@
-mod entry;
-mod iter;
+pub mod entry;
+pub mod iter;
 mod node;
 mod utils;
 
