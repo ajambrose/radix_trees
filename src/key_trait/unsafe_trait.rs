@@ -6,9 +6,10 @@ macro_rules! impl_unsafe_transform {
             impl TrieKey for $Ty
             {
                 fn key_bytes(&self) -> &[u8] {
+                    // Safety: Transforming core primitives with no padding to slices of bytes is safe
                     unsafe {
                         let p = self as *const Self as *const u8;
-                        std::slice::from_raw_parts(p, size_of::<$Ty>())
+                        core::slice::from_raw_parts(p, size_of::<$Ty>())
                     }
                 }
             }
@@ -17,10 +18,11 @@ macro_rules! impl_unsafe_transform {
             impl TrieKey for [$Ty]
             {
                 fn key_bytes(&self) -> &[u8] {
+                    // Safety: Transforming slices of core primitives with no padding to slices of bytes is safe
                     unsafe {
-                        let sz = std::mem::size_of_val(self);
+                        let sz = core::mem::size_of_val(self);
                         let p = self.as_ptr() as *const u8;
-                        std::slice::from_raw_parts(p, sz)
+                        core::slice::from_raw_parts(p, sz)
                     }
                 }
             }
