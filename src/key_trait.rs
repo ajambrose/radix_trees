@@ -7,7 +7,7 @@ mod zerocopy_trait;
 mod unsafe_trait;
 
 /// Trait definition for keys which are suitable to use in one of this crate's tries.
-/// 
+///
 /// When implementing this trait yourself, the implementing type must NOT have interior mutability.
 /// Phrased differently, for a non-mutable `T`, [`key_bytes`](TrieKey::key_bytes) must always return the
 /// same value for the lifetime of that `T`.
@@ -21,7 +21,7 @@ pub trait TrieKey {
 }
 
 /// Key equivalence trait.
-/// 
+///
 /// This trait allows trie lookup with key types that don't exactly match the stored key.
 /// For example, this allows using `&str` to search a map with `String` keys, etc.
 pub trait Equivalent<K: ?Sized> {}

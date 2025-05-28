@@ -120,7 +120,7 @@ impl<K: TrieKey, V> Extend<(K, V)> for PTreeMap<K, V> {
 
 impl<K: TrieKey, V> Extend<(KeyMask<K>, V)> for PTreeMap<K, V> {
     fn extend<T: IntoIterator<Item = (KeyMask<K>, V)>>(&mut self, iter: T) {
-        iter.into_iter().for_each(|(km, v)| drop(self.insert_masked(km, v)));
+        iter.into_iter().for_each(|(km, v)| drop(self.insert_exact(km, v)));
     }
 }
 
@@ -144,7 +144,7 @@ pub struct Iter<'a, K: TrieKey, V> {
 
 impl<'a, K: TrieKey, V> Iter<'a, K, V> {
     /// Creates an iterator which [`clone`](core::clone::Clone::clone)s all of its elements.
-    /// 
+    ///
     /// This is separate from the core iterator [`cloned`](core::iter::Iterator::cloned) function,
     /// as it allows an iterator of [`KeyMask<&K>`] to be cloned to [`KeyMask<K>`].
     pub fn cloned(self) -> Cloned<Self>
@@ -156,7 +156,7 @@ impl<'a, K: TrieKey, V> Iter<'a, K, V> {
     }
 
     /// Creates an iterator which copies all of its elements.
-    /// 
+    ///
     /// This is separate from the core iterator [`copied`](core::iter::Iterator::copied) function,
     /// as it allows an iterator of [`KeyMask<&K>`] to be copied to [`KeyMask<K>`].
     pub fn copied(self) -> Copied<Self>

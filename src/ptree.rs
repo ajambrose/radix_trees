@@ -1,16 +1,30 @@
-pub mod entry;
-pub mod iter;
+//! An implementation of a Patricia tree that provides associative storage via [`PTreeMap`].
+
+mod entry;
+mod iter;
 mod node;
 mod utils;
 
-use self::entry::{Entry, EntryRef, OccupiedEntry, VacantEntry, VacantEntryCommon, VacantEntryRef};
-use self::iter::{Iter, IterMut};
 use self::node::Link;
-pub use self::utils::{KeyMask, MAX_KEY_LEN_BYTES, key_masklen_check};
 use self::utils::{branch_bit, branch_masklen, key_eq};
 use crate::{Equivalent, TrieKey};
 use core::marker::PhantomData;
 
+pub use self::entry::*;
+pub use self::iter::*;
+pub use self::utils::{KeyMask, MAX_KEY_LEN_BYTES, key_masklen_check};
+
+/// An associative data structure that uses the underlying bit representation of keys
+/// to store and search for values.
+///
+/// Valid keys implement the [`TrieKey`] trait, and are compared in big-endian order.
+/// This produces the expected output when considering strings
+/// (IE `"Hello"` is a prefix of `"Hello World"`), however it can produce unexpected
+/// results when comparing little-endian integers. Therefore, it is recommended to use
+/// fixed-endian types for keys. Values are unaffected by endianness.
+///
+/// # Examples
+/// WIP
 pub struct PTreeMap<K: TrieKey, V> {
     root: Link<K, V>,
     len: usize,
@@ -19,31 +33,50 @@ pub struct PTreeMap<K: TrieKey, V> {
 
 // Public API
 impl<K: TrieKey, V> PTreeMap<K, V> {
+    /// Create an empty [`PTreeMap`].
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Returns [`true`] if the map is empty.
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
 
+    /// Returns the number of key-value pairs stored in the map.
     pub fn len(&self) -> usize {
         self.len
     }
 
+    /// Clears the map, dropping all elements and internal nodes.
     pub fn clear(&mut self) {
         let curr = core::mem::replace(&mut self.root, Link::null());
         let len = core::mem::replace(&mut self.len, 0);
         let _ = self::iter::IntoIter { curr, len, _pd: PhantomData };
     }
 
-    pub fn entry(&mut self, km: KeyMask<K>) -> Entry<K, V> {
+    /// Gets the given key's corresponding entry in the map for in-place manipulation.
+    pub fn entry(&mut self, key: K) -> Entry<K, V> {
+        self.entry_exact(KeyMask::new(key))
+    }
+
+    /// Gets the given key/mask length's corresponding entry in the map for in-place manipulation.
+    pub fn entry_exact(&mut self, km: KeyMask<K>) -> Entry<K, V> {
         let (key, masklen) = km.take();
         self.entry_common(key.key_bytes(), masklen)
             .map_or_else(|common| Entry::Vacant(VacantEntry::new(key, common)), Entry::Occupied)
     }
 
+    /// Gets the given key's corresponding entry by reference in the map for in-place manipulation.
     pub fn entry_ref<'a, 'b, Q: TrieKey + Equivalent<K>>(
+        &'a mut self,
+        key: &'b Q,
+    ) -> EntryRef<'a, 'b, K, Q, V> {
+        self.entry_ref_exact(KeyMask::new(key))
+    }
+
+    /// Gets the given key/mask length's corresponding entry by reference in the map for in-place manipulation.
+    pub fn entry_ref_exact<'a, 'b, Q: TrieKey + Equivalent<K>>(
         &'a mut self,
         km: KeyMask<&'b Q>,
     ) -> EntryRef<'a, 'b, K, Q, V> {
@@ -54,6 +87,18 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
         )
     }
 
+    /// Returns a reference to the value corresponding to the key.
+    ///
+    /// The key may be any borrowed form of the map's key type, but [`TrieKey`] on the borrowed form
+    /// must match that of the key type.
+    pub fn get<Q: TrieKey + Equivalent<K>>(&self, key: Q) -> Option<&V> {
+        self.get_exact(KeyMask::new(key))
+    }
+
+    /// Returns a reference to the value corresponding to the key / mask length.
+    ///
+    /// The key may be any borrowed form of the map's key type, but [`TrieKey`] on the borrowed form
+    /// must match that of the key type.
     pub fn get_exact<Q: TrieKey + Equivalent<K>>(&self, km: KeyMask<Q>) -> Option<&V> {
         if let Some(node) = self.descend_shortcircuit(km.key().key_bytes(), km.masklen()).get() {
             if let Some(val) = node.val.as_deref() {
@@ -66,6 +111,18 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
         None
     }
 
+    /// Returns a mutable reference to the value corresponding to the key.
+    ///
+    /// The key may be any borrowed form of the map's key type, but [`TrieKey`] on the borrowed form
+    /// must match that of the key type.
+    pub fn get_mut<Q: TrieKey + Equivalent<K>>(&self, key: Q) -> Option<&mut V> {
+        self.get_exact_mut(KeyMask::new(key))
+    }
+
+    /// Returns a mutable reference to the value corresponding to the key / mask length.
+    ///
+    /// The key may be any borrowed form of the map's key type, but [`TrieKey`] on the borrowed form
+    /// must match that of the key type.
     pub fn get_exact_mut<Q: TrieKey + Equivalent<K>>(&self, km: KeyMask<Q>) -> Option<&mut V> {
         if let Some(node) = self.descend_shortcircuit(km.key().key_bytes(), km.masklen()).get_mut()
         {
@@ -79,21 +136,41 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
         None
     }
 
+    /// Inserts a key-value pair into the map.
+    ///
+    /// If the map did not have this key present, [`None`] is returned.
+    ///
+    /// If the map did have this key present, the value is updated, and the old value is returned.
     pub fn insert(&mut self, key: K, val: V) -> Option<V> {
-        self.insert_masked(KeyMask::new(key), val)
+        self.insert_exact(KeyMask::new(key), val)
     }
 
-    pub fn insert_masked(&mut self, km: KeyMask<K>, val: V) -> Option<V> {
-        match self.entry(km) {
+    /// Inserts a key-value pair into the map with the specified mask length.
+    ///
+    /// If the map did not have this key present, [`None`] is returned.
+    ///
+    /// If the map did have this key present, the value is updated, and the old value is returned.
+    pub fn insert_exact(&mut self, km: KeyMask<K>, val: V) -> Option<V> {
+        match self.entry_exact(km) {
             Entry::Vacant(e) => {
                 e.insert_entry(val);
                 None
             }
-            Entry::Occupied(mut e) => Some(e.insert_entry(val)),
+            Entry::Occupied(mut e) => Some(e.insert(val)),
         }
     }
 
-    pub fn remove<Q>(&mut self, km: KeyMask<Q>) -> Option<(KeyMask<K>, V)>
+    /// Removes a key from the map, returning the value at that key if it was previously in the map.
+    pub fn remove<Q>(&mut self, key: Q) -> Option<(KeyMask<K>, V)>
+    where
+        Q: TrieKey + Equivalent<K>,
+    {
+        self.remove_exact(KeyMask::new(key))
+    }
+
+    /// Removes a key / mask length from the map,
+    /// returning the value at that key if it was previously in the map.
+    pub fn remove_exact<Q>(&mut self, km: KeyMask<Q>) -> Option<(KeyMask<K>, V)>
     where
         Q: TrieKey + Equivalent<K>,
     {
@@ -118,10 +195,12 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
     //     todo!()
     // }
 
+    /// An iterator visiting all [`KeyMask`]-value pairs in lexical order.
     pub fn iter(&self) -> Iter<K, V> {
         Iter { curr: self.root, len: self.len, _pd: PhantomData }
     }
 
+    /// An iterator visiting all [`KeyMask`]-value pairs in lexical order, with mutable references to the values.
     pub fn iter_mut(&mut self) -> IterMut<K, V> {
         IterMut { curr: self.root, len: self.len, _pd: PhantomData }
     }

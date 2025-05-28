@@ -46,9 +46,9 @@ fn branch_to_val() {
     let a = U32::new(2);
     let b = U32::new(3);
     let mut t = PTreeMap::<U32, u32>::default();
-    assert_eq!(t.insert_masked(KeyMask::new_exact(a, 32).unwrap(), 4), None);
-    assert_eq!(t.insert_masked(KeyMask::new_exact(b, 32).unwrap(), 6), None);
-    assert_eq!(t.insert_masked(KeyMask::new_exact(a, 31).unwrap(), 8), None);
+    assert_eq!(t.insert_exact(KeyMask::new_exact(a, 32).unwrap(), 4), None);
+    assert_eq!(t.insert_exact(KeyMask::new_exact(b, 32).unwrap(), 6), None);
+    assert_eq!(t.insert_exact(KeyMask::new_exact(a, 31).unwrap(), 8), None);
     assert_eq!(t.len(), 3);
     assert_eq!(t.get_exact(KeyMask::new_exact(&a, 32).unwrap()).copied(), Some(4));
     assert_eq!(t.get_exact(KeyMask::new_exact(&b, 32).unwrap()).copied(), Some(6));
@@ -63,10 +63,10 @@ fn insert_inline() {
     let bp = U32::new(0x01000000);
     let mut t = PTreeMap::<U32, u32>::default();
 
-    assert_eq!(t.insert_masked(KeyMask::new_exact(a, 32).unwrap(), 0), None);
-    assert_eq!(t.insert_masked(KeyMask::new_exact(b, 32).unwrap(), 1), None);
-    assert_eq!(t.insert_masked(KeyMask::new_exact(ap, 31).unwrap(), 2), None);
-    assert_eq!(t.insert_masked(KeyMask::new_exact(bp, 31).unwrap(), 3), None);
+    assert_eq!(t.insert_exact(KeyMask::new_exact(a, 32).unwrap(), 0), None);
+    assert_eq!(t.insert_exact(KeyMask::new_exact(b, 32).unwrap(), 1), None);
+    assert_eq!(t.insert_exact(KeyMask::new_exact(ap, 31).unwrap(), 2), None);
+    assert_eq!(t.insert_exact(KeyMask::new_exact(bp, 31).unwrap(), 3), None);
     assert_eq!(t.len(), 4);
     assert_eq!(t.get_exact(KeyMask::new_exact(&a, 32).unwrap()).copied(), Some(0));
     assert_eq!(t.get_exact(KeyMask::new_exact(&b, 32).unwrap()).copied(), Some(1));
@@ -87,8 +87,8 @@ fn branch_backtrack() {
     let km2 = KeyMask::new_exact(U32::new(0xff010080), 32).unwrap();
     expected.push((km1, 5));
     expected.push((km2, 6));
-    assert_eq!(t.insert_masked(km1, 5), None);
-    assert_eq!(t.insert_masked(km2, 6), None);
+    assert_eq!(t.insert_exact(km1, 5), None);
+    assert_eq!(t.insert_exact(km2, 6), None);
     assert_eq!(t.into_iter().collect::<Vec<_>>(), expected);
 }
 
@@ -100,15 +100,15 @@ fn remove() {
     let bp = U32::new(0x01000000);
     let mut t = PTreeMap::<U32, u32>::default();
 
-    assert_eq!(t.insert_masked(KeyMask::new_exact(a, 32).unwrap(), 0), None);
-    assert_eq!(t.insert_masked(KeyMask::new_exact(b, 32).unwrap(), 1), None);
-    assert_eq!(t.insert_masked(KeyMask::new_exact(ap, 31).unwrap(), 2), None);
-    assert_eq!(t.insert_masked(KeyMask::new_exact(bp, 31).unwrap(), 3), None);
+    assert_eq!(t.insert_exact(KeyMask::new_exact(a, 32).unwrap(), 0), None);
+    assert_eq!(t.insert_exact(KeyMask::new_exact(b, 32).unwrap(), 1), None);
+    assert_eq!(t.insert_exact(KeyMask::new_exact(ap, 31).unwrap(), 2), None);
+    assert_eq!(t.insert_exact(KeyMask::new_exact(bp, 31).unwrap(), 3), None);
 
     assert_eq!(t.len(), 4);
     assert_eq!(t.get_exact(KeyMask::new_exact(&ap, 31).unwrap()).copied(), Some(2));
     let km = KeyMask::new_exact(&ap, 31).unwrap();
-    assert_eq!(t.remove(km), Some((KeyMask::clone_borrowed(&km), 2u32)));
+    assert_eq!(t.remove_exact(km), Some((KeyMask::clone_borrowed(&km), 2u32)));
     assert_eq!(t.get_exact(KeyMask::new_exact(&ap, 31).unwrap()), None);
 }
 

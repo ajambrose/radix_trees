@@ -3,7 +3,7 @@ use zerocopy::{Immutable, IntoBytes};
 
 #[macro_export]
 /// Safely implement [`TrieKey`] for a type which already implements [`IntoBytes`] + [`Immutable`].
-/// 
+///
 /// Only available with crate feature `zerocopy`.
 macro_rules! impl_from_zerocopy {
     ($($Ty:ty),+) => {

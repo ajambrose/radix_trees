@@ -333,7 +333,7 @@ impl<'a, K: TrieKey, V> Entry<'a, K, V> {
     }
 
     /// Ensures a value is in the entry by inserting, if empty, the result of the default function.
-    /// 
+    ///
     /// The reference to the moved key is provided so that cloning or copying the key is unnecessary,
     /// unlike with [`or_insert_with`](Self::or_insert_with).
     pub fn or_insert_with_key<F: FnOnce(&K) -> V>(self, default: F) -> &'a mut V {
@@ -377,9 +377,9 @@ impl<'a, K: TrieKey, V> Entry<'a, K, V> {
 
 /// A handle to a single entry in a [`PTreeMap`], which may either be vacant or occupied,
 /// with any borrowed form of the map's key type.
-/// 
+///
 /// Created with [`entry_ref`](PTreeMap::entry_ref).
-/// 
+///
 /// [`TrieKey`] on the borrowed form of the key type must match those for the map's key type.
 /// The key must also be constructible from the borrowed form with the [`From`] trait.
 pub enum EntryRef<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> {
@@ -429,7 +429,7 @@ impl<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> EntryRef<'a, 'b, K, Q, V
     }
 
     /// Ensures a value is in the entry by inserting, if empty, the result of the default function.
-    /// 
+    ///
     /// The reference to the moved key is provided so that cloning or copying the key is unnecessary,
     /// unlike with [`or_insert_with`](Self::or_insert_with).
     pub fn or_insert_with_key<F: FnOnce(&Q) -> V>(self, default: F) -> &'a mut V

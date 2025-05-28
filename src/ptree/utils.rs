@@ -2,7 +2,7 @@ use crate::{Equivalent, TrieKey};
 use core::ops::Deref;
 
 /// The maximum length of a key in bytes.
-/// 
+///
 /// Ensures a key's bit length may be represented as a [`u32`].
 pub const MAX_KEY_LEN_BYTES: usize = (u32::MAX as usize) >> 3;
 
@@ -242,7 +242,7 @@ pub(crate) fn branch_bit(key: &[u8], bit_idx: u32) -> bool {
 }
 
 /// Calculate the first bit index where the two provided keys differ.
-/// 
+///
 /// If there are no differences, returns the length of the shorter key in bits.
 pub(crate) fn branch_masklen(a: &[u8], b: &[u8]) -> u32 {
     let Some((idx, (b1, b2))) = a.iter().zip(b).enumerate().find(|(_, (a, b))| a != b) else {
