@@ -80,7 +80,7 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
     }
 
     pub fn insert(&mut self, key: K, val: V) -> Option<V> {
-        self.insert_masked(KeyMask::new_host(key), val)
+        self.insert_masked(KeyMask::new(key), val)
     }
 
     pub fn insert_masked(&mut self, km: KeyMask<K>, val: V) -> Option<V> {
