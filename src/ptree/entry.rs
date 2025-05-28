@@ -1,5 +1,7 @@
-use crate::node::{Link, Node};
-use crate::{Equivalent, KeyMask, PTreeMap, TrieKey};
+use super::PTreeMap;
+use super::node::{Link, Node};
+use super::utils::KeyMask;
+use crate::{Equivalent, TrieKey};
 use alloc::boxed::Box;
 use core::borrow::Borrow;
 use core::mem;

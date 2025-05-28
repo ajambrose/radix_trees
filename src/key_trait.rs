@@ -6,7 +6,7 @@ mod zerocopy_trait;
 #[cfg(not(feature = "zerocopy"))]
 mod unsafe_trait;
 
-/// Trait definition for keys which are suitable to use in a [`PTreeMap`](crate::PTreeMap).
+/// Trait definition for keys which are suitable to use in one of this crate's tries.
 ///
 /// When the `zerocopy` feature is included, this trait leverages [`zerocopy`] to offload unsafe
 /// code and provide more blanket implementations for things like arrays and slices of data.
