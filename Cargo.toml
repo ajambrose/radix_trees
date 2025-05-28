@@ -1,15 +1,15 @@
 [package]
-name = "ptries"
+name = "radix_trees"
 version = "0.1.0"
 authors = ["Alex Ambrose"]
-categories = []
-description = "TODO"
-documentation = "TODO"
+categories = ["no-std", "data-structures", "text-processing"]
+description = "Various radix tree (trie) data structures."
+documentation = "https://docs.rs/radix_trees"
 edition = "2024"
-keywords = []
+keywords = ["trie", "tree", "patricia", "radix", "prefix"]
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/ajambrose/ptries"
+repository = "https://github.com/ajambrose/radix_trees"
 rust-version = "1.85"
 
 [lints.clippy]

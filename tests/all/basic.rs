@@ -1,4 +1,4 @@
-use ptries::{KeyMask, TrieMap};
+use radix_trees::{KeyMask, TrieMap};
 use zerocopy::byteorder::big_endian::U32;
 extern crate std;
 
