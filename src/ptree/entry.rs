@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use core::borrow::Borrow;
 use core::mem;
 
+/// Stores data common between [`VacantEntry`] and [`VacantEntryRef`].
 pub(super) struct VacantEntryCommon<'a, K: TrieKey, V> {
     tree: &'a mut PTreeMap<K, V>,
     masklen: u32,
@@ -30,6 +31,7 @@ impl<'a, K: TrieKey, V> VacantEntryCommon<'a, K, V> {
     }
 }
 
+/// A handle to a vacant entry in a [`PTreeMap`]. Part of [`Entry`].
 pub struct VacantEntry<'a, K: TrieKey, V> {
     common: VacantEntryCommon<'a, K, V>,
     key: K,
@@ -40,10 +42,12 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
         Self { common, key }
     }
 
+    /// Get a reference to the key that would be used when inserting a value.
     pub fn key(&self) -> &K {
         &self.key
     }
 
+    /// Perform some runtime checks when converting to an [`OccupiedEntry`], and increment tree length.
     fn into_occupied(tree: &'a mut PTreeMap<K, V>, link: Link<K, V>) -> OccupiedEntry<'a, K, V> {
         let Some(node) = link.get() else {
             panic!("Tried to convert an unoccupied VacantEntry into an OccupiedEntry");
@@ -54,6 +58,7 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
         OccupiedEntry::new(tree, link)
     }
 
+    /// Inserts the provided value using the [`VacantEntry`]'s key, and returns an [`OccupiedEntry`].
     pub fn insert_entry(self, val: V) -> OccupiedEntry<'a, K, V> {
         // macro to avoid partial borrow complaints
         macro_rules! add_child_link {
@@ -154,11 +159,17 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
         }
     }
 
+    /// Inserts the provided value using the [`VacantEntry`]'s key,
+    /// and returns a mutable reference to the inserted value.
     pub fn insert(self, val: V) -> &'a mut V {
         self.insert_entry(val).into_mut()
     }
 }
 
+/// A handle to a vacant entry in a [`PTreeMap`]. Part of [`EntryRef`].
+///
+/// Unlike [`VacantEntry`], the contained key is a reference type, and is only converted
+/// to an owned value when calling one of the insertion functions.
 pub struct VacantEntryRef<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> {
     common: VacantEntryCommon<'a, K, V>,
     key: &'b Q,
@@ -169,22 +180,26 @@ impl<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> VacantEntryRef<'a, 'b, K
         Self { common, key }
     }
 
+    /// Get a reference to the key that would be used when inserting a value.
     pub fn key(&self) -> &'b Q {
         self.key
     }
 
-    pub fn insert(self, val: V) -> &'a mut V
-    where
-        &'b Q: Into<K>,
-    {
-        VacantEntry::from(self).insert(val)
-    }
-
+    /// Inserts the provided value using the [`VacantEntryRef`]'s key, and returns an [`OccupiedEntry`].
     pub fn insert_entry(self, val: V) -> OccupiedEntry<'a, K, V>
     where
         &'b Q: Into<K>,
     {
         VacantEntry::from(self).insert_entry(val)
+    }
+
+    /// Inserts the provided value using the [`VacantEntryRef`]'s key,
+    /// and returns a mutable reference to the inserted value.
+    pub fn insert(self, val: V) -> &'a mut V
+    where
+        &'b Q: Into<K>,
+    {
+        VacantEntry::from(self).insert(val)
     }
 }
 
@@ -198,6 +213,7 @@ where
     }
 }
 
+/// A handle to an occupied entry in a [`PTreeMap`]. Part of [`Entry`] and [`EntryRef`].
 pub struct OccupiedEntry<'a, K: TrieKey, V> {
     tree: &'a mut PTreeMap<K, V>,
     link: Link<K, V>,
@@ -212,26 +228,38 @@ impl<'a, K: TrieKey, V> OccupiedEntry<'a, K, V> {
         self.link.get_mut().unwrap()
     }
 
+    /// Get a reference to the key in the entry.
     pub fn key(&self) -> &K {
         &self.node().val.as_deref().unwrap().0
     }
 
+    /// Get a reference to the value in the entry.
     pub fn get(&self) -> &V {
         &self.node().val.as_deref().unwrap().1
     }
 
+    /// Get a mutable reference to the value in the entry.
+    ///
+    /// If you need a reference to the [`OccupiedEntry`] which may outlive the destruction
+    /// of the [`Entry`] value, see [`into_mut`](Self::into_mut).
     pub fn get_mut(&mut self) -> &mut V {
         &mut self.node().val.as_deref_mut().unwrap().1
     }
 
+    /// Converts the [`OccupiedEntry`] into a mutable reference to the value in the entry,
+    /// with a lifetime bound to the [`PTreeMap`] itself.
+    ///
+    /// If you need multiple references to the [`OccupiedEntry`], see [`get_mut`](Self::get_mut).
     pub fn into_mut(self) -> &'a mut V {
         &mut self.node().val.as_deref_mut().unwrap().1
     }
 
-    pub fn insert_entry(&mut self, val: V) -> V {
+    /// Sets the value of the entry, and returns the old value.
+    pub fn insert(&mut self, val: V) -> V {
         mem::replace(self.get_mut(), val)
     }
 
+    /// Takes the value out of the entry, and returns it.
     pub fn remove_entry(self) -> (KeyMask<K>, V) {
         let node = self.node();
         let (k, v) = *node.val.take().unwrap();
@@ -264,22 +292,30 @@ impl<'a, K: TrieKey, V> OccupiedEntry<'a, K, V> {
     }
 }
 
+/// A handle to a single entry in a [`PTreeMap`], which may either be vacant or occupied.
+///
+/// Created with [`entry`](PTreeMap::entry).
 pub enum Entry<'a, K: TrieKey, V> {
+    /// A vacant entry.
     Vacant(VacantEntry<'a, K, V>),
+    /// An occupied entry.
     Occupied(OccupiedEntry<'a, K, V>),
 }
 
 impl<'a, K: TrieKey, V> Entry<'a, K, V> {
+    /// Inserts or updates the value for this entry, and returns an [`OccupiedEntry`].
     pub fn insert(self, val: V) -> OccupiedEntry<'a, K, V> {
         match self {
             Entry::Vacant(e) => e.insert_entry(val),
             Entry::Occupied(mut e) => {
-                e.insert_entry(val);
+                e.insert(val);
                 e
             }
         }
     }
 
+    /// Ensures a value is in the entry by inserting the default if empty,
+    /// and returns a mutable reference to the value in the entry.
     pub fn or_insert(self, default: V) -> &'a mut V {
         match self {
             Entry::Vacant(e) => e.insert(default),
@@ -287,6 +323,8 @@ impl<'a, K: TrieKey, V> Entry<'a, K, V> {
         }
     }
 
+    /// Ensures a value is in the entry by inserting the result of the default function
+    /// if empty, and returns a mutable reference to the value in the entry.
     pub fn or_insert_with<F: FnOnce() -> V>(self, default: F) -> &'a mut V {
         match self {
             Entry::Vacant(e) => e.insert(default()),
@@ -294,6 +332,10 @@ impl<'a, K: TrieKey, V> Entry<'a, K, V> {
         }
     }
 
+    /// Ensures a value is in the entry by inserting, if empty, the result of the default function.
+    /// 
+    /// The reference to the moved key is provided so that cloning or copying the key is unnecessary,
+    /// unlike with [`or_insert_with`](Self::or_insert_with).
     pub fn or_insert_with_key<F: FnOnce(&K) -> V>(self, default: F) -> &'a mut V {
         match self {
             Entry::Vacant(e) => {
@@ -304,6 +346,7 @@ impl<'a, K: TrieKey, V> Entry<'a, K, V> {
         }
     }
 
+    /// Get a reference to this entry's key.
     pub fn key(&self) -> &K {
         match self {
             Entry::Vacant(e) => e.key(),
@@ -311,6 +354,7 @@ impl<'a, K: TrieKey, V> Entry<'a, K, V> {
         }
     }
 
+    /// Provides in-place mutable access to an occupied entry before any potential inserts into the map.
     pub fn and_modify<F: FnOnce(&mut V)>(self, f: F) -> Self {
         match self {
             Entry::Vacant(_) => self,
@@ -321,6 +365,8 @@ impl<'a, K: TrieKey, V> Entry<'a, K, V> {
         }
     }
 
+    /// Ensures a value is in the entry by inserting one with [`default`](Default::default) if empty,
+    /// and returns a mutable reference to the value in the entry.
     pub fn or_default(self) -> &'a mut V
     where
         V: Default,
@@ -329,12 +375,22 @@ impl<'a, K: TrieKey, V> Entry<'a, K, V> {
     }
 }
 
+/// A handle to a single entry in a [`PTreeMap`], which may either be vacant or occupied,
+/// with any borrowed form of the map's key type.
+/// 
+/// Created with [`entry_ref`](PTreeMap::entry_ref).
+/// 
+/// [`TrieKey`] on the borrowed form of the key type must match those for the map's key type.
+/// The key must also be constructible from the borrowed form with the [`From`] trait.
 pub enum EntryRef<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> {
+    /// A vacant entry.
     Vacant(VacantEntryRef<'a, 'b, K, Q, V>),
+    /// An occupied entry.
     Occupied(OccupiedEntry<'a, K, V>),
 }
 
 impl<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> EntryRef<'a, 'b, K, Q, V> {
+    /// Inserts or updates the value for this entry, and returns an [`OccupiedEntry`].
     pub fn insert(self, val: V) -> OccupiedEntry<'a, K, V>
     where
         &'b Q: Into<K>,
@@ -342,12 +398,14 @@ impl<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> EntryRef<'a, 'b, K, Q, V
         match self {
             EntryRef::Vacant(e) => e.insert_entry(val),
             EntryRef::Occupied(mut e) => {
-                e.insert_entry(val);
+                e.insert(val);
                 e
             }
         }
     }
 
+    /// Ensures a value is in the entry by inserting the default if empty,
+    /// and returns a mutable reference to the value in the entry.
     pub fn or_insert(self, default: V) -> &'a mut V
     where
         &'b Q: Into<K>,
@@ -358,6 +416,8 @@ impl<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> EntryRef<'a, 'b, K, Q, V
         }
     }
 
+    /// Ensures a value is in the entry by inserting the result of the default function
+    /// if empty, and returns a mutable reference to the value in the entry.
     pub fn or_insert_with<F: FnOnce() -> V>(self, default: F) -> &'a mut V
     where
         &'b Q: Into<K>,
@@ -368,6 +428,10 @@ impl<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> EntryRef<'a, 'b, K, Q, V
         }
     }
 
+    /// Ensures a value is in the entry by inserting, if empty, the result of the default function.
+    /// 
+    /// The reference to the moved key is provided so that cloning or copying the key is unnecessary,
+    /// unlike with [`or_insert_with`](Self::or_insert_with).
     pub fn or_insert_with_key<F: FnOnce(&Q) -> V>(self, default: F) -> &'a mut V
     where
         &'b Q: Into<K>,
@@ -381,6 +445,7 @@ impl<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> EntryRef<'a, 'b, K, Q, V
         }
     }
 
+    /// Get a reference to this entry's key.
     pub fn key(&self) -> &Q
     where
         K: Borrow<Q>,
@@ -391,6 +456,7 @@ impl<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> EntryRef<'a, 'b, K, Q, V
         }
     }
 
+    /// Provides in-place mutable access to an occupied entry before any potential inserts into the map.
     pub fn and_modify<F: FnOnce(&mut V)>(self, f: F) -> Self {
         match self {
             EntryRef::Vacant(_) => self,
@@ -401,6 +467,8 @@ impl<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> EntryRef<'a, 'b, K, Q, V
         }
     }
 
+    /// Ensures a value is in the entry by inserting one with [`default`](Default::default) if empty,
+    /// and returns a mutable reference to the value in the entry.
     pub fn or_default(self) -> &'a mut V
     where
         V: Default,
