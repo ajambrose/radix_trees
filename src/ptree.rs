@@ -91,6 +91,8 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
     ///
     /// The key may be any borrowed form of the map's key type, but [`TrieKey`] on the borrowed form
     /// must match that of the key type.
+    ///
+    /// Equivalent to [`get_exact`](Self::get_exact) with a mask length that covers the entire key.
     pub fn get<Q: TrieKey + Equivalent<K>>(&self, key: Q) -> Option<&V> {
         self.get_exact(KeyMask::new(key))
     }
@@ -100,7 +102,7 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
     /// The key may be any borrowed form of the map's key type, but [`TrieKey`] on the borrowed form
     /// must match that of the key type.
     pub fn get_exact<Q: TrieKey + Equivalent<K>>(&self, km: KeyMask<Q>) -> Option<&V> {
-        if let Some(node) = self.descend_shortcircuit(km.key().key_bytes(), km.masklen()).get() {
+        if let Some(node) = self.descend_shortcircuit(km.key().key_bytes(), km.masklen()).0.get() {
             if let Some(val) = node.val.as_deref() {
                 if key_eq(km.key().key_bytes(), km.masklen(), val.0.key_bytes(), node.masklen) {
                     return Some(&val.1);
@@ -111,10 +113,61 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
         None
     }
 
+    pub fn get_best<Q: TrieKey + Equivalent<K>>(&self, key: Q) -> Option<(KeyMask<&K>, &V)> {
+        self.get_best_masklen(KeyMask::new(key))
+    }
+
+    /// Returns a reference to the key-value-pair that best matches the provided key / mask length.
+    ///
+    /// The best match key is one that is a proper prefix of the provided key / mask,
+    /// with the longest mask length, and may be an exact match.
+    pub fn get_best_masklen<Q: TrieKey + Equivalent<K>>(
+        &self,
+        km: KeyMask<Q>,
+    ) -> Option<(KeyMask<&K>, &V)> {
+        let (key, masklen) = km.take();
+        let (mut curr, parent) = self.descend_shortcircuit(key.key_bytes(), masklen);
+
+        let branch_masklen = if let Some(mut node) = curr.get() {
+            loop {
+                if let Some(val) = node.val.as_deref() {
+                    break branch_masklen(key.key_bytes(), val.0.key_bytes());
+                }
+                curr = node.parent;
+                if let Some(p) = curr.get() {
+                    node = p;
+                } else {
+                    return None;
+                }
+            }
+        } else if let Some(p) = parent.get() {
+            // parent above an empty link is guaranteed to have a value
+            let val = p.val.as_deref().unwrap();
+            curr = parent;
+            branch_masklen(key.key_bytes(), val.0.key_bytes())
+        } else {
+            return None;
+        };
+
+        while let Some(node) = curr.get() {
+            if node.masklen <= branch_masklen {
+                if let Some(val) = node.val.as_deref() {
+                    // SAFETY: The presence of this key/mask in the trie means that it was already validated
+                    return Some((unsafe { KeyMask::new_unchecked(&val.0, node.masklen) }, &val.1));
+                }
+            }
+            curr = node.parent;
+        }
+
+        None
+    }
+
     /// Returns a mutable reference to the value corresponding to the key.
     ///
     /// The key may be any borrowed form of the map's key type, but [`TrieKey`] on the borrowed form
     /// must match that of the key type.
+    ///
+    /// Equivalent to [`get_exact_mut`](Self::get_exact_mut) with a mask length that covers the entire key.
     pub fn get_mut<Q: TrieKey + Equivalent<K>>(&self, key: Q) -> Option<&mut V> {
         self.get_exact_mut(KeyMask::new(key))
     }
@@ -124,7 +177,8 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
     /// The key may be any borrowed form of the map's key type, but [`TrieKey`] on the borrowed form
     /// must match that of the key type.
     pub fn get_exact_mut<Q: TrieKey + Equivalent<K>>(&self, km: KeyMask<Q>) -> Option<&mut V> {
-        if let Some(node) = self.descend_shortcircuit(km.key().key_bytes(), km.masklen()).get_mut()
+        if let Some(node) =
+            self.descend_shortcircuit(km.key().key_bytes(), km.masklen()).0.get_mut()
         {
             if let Some(val) = node.val.as_deref_mut() {
                 if key_eq(km.key().key_bytes(), km.masklen(), val.0.key_bytes(), node.masklen) {
@@ -141,6 +195,8 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
     /// If the map did not have this key present, [`None`] is returned.
     ///
     /// If the map did have this key present, the value is updated, and the old value is returned.
+    ///
+    /// Equivalent to [`insert_exact`](Self::insert_exact) with a mask length that covers the entire key.
     pub fn insert(&mut self, key: K, val: V) -> Option<V> {
         self.insert_exact(KeyMask::new(key), val)
     }
@@ -161,6 +217,8 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
     }
 
     /// Removes a key from the map, returning the value at that key if it was previously in the map.
+    ///
+    /// Equivalent to [`remove_exact`](Self::remove_exact) with a mask length that covers the entire key.
     pub fn remove<Q>(&mut self, key: Q) -> Option<(KeyMask<K>, V)>
     where
         Q: TrieKey + Equivalent<K>,
@@ -174,7 +232,7 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
     where
         Q: TrieKey + Equivalent<K>,
     {
-        let curr = self.descend_shortcircuit(km.key().key_bytes(), km.masklen());
+        let (curr, _) = self.descend_shortcircuit(km.key().key_bytes(), km.masklen());
         if let Some(node) = curr.get() {
             if let Some(val) = node.val.as_deref() {
                 if key_eq(km.key().key_bytes(), km.masklen(), val.0.key_bytes(), node.masklen) {
@@ -289,17 +347,24 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
         let mut curr = self.root;
 
         while let Some(node) = curr.get() {
-            if node.masklen >= masklen && node.val.is_some() {
-                break;
-            }
+            if node.masklen >= masklen {
+                if node.val.is_some() {
+                    break;
+                }
 
-            parent = curr;
-            curr = if branch_bit(key, node.masklen) { node.right } else { node.left };
+                // we're past the current key space, so all bits are "zero"
+                parent = curr;
+                curr = node.left;
+            } else {
+                parent = curr;
+                curr = if branch_bit(key, node.masklen) { node.right } else { node.left };
+            }
         }
         (curr, parent)
     }
 
-    fn descend_shortcircuit(&self, key: &[u8], masklen: u32) -> Link<K, V> {
+    fn descend_shortcircuit(&self, key: &[u8], masklen: u32) -> (Link<K, V>, Link<K, V>) {
+        let mut parent = Link::null();
         let mut curr = self.root;
 
         while let Some(node) = curr.get() {
@@ -307,9 +372,10 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
                 break;
             }
 
+            parent = curr;
             curr = if branch_bit(key, node.masklen) { node.right } else { node.left };
         }
-        curr
+        (curr, parent)
     }
 }
 

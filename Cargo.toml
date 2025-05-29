@@ -18,6 +18,7 @@ rust-version = "1.85"
 [features]
 default = ["zerocopy"]
 zerocopy = ["dep:zerocopy"]
+std = []
 
 [dependencies]
 zerocopy = { version = "0.8", optional = true, default-features = false }

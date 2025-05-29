@@ -155,3 +155,19 @@ fn strings() {
     assert_eq!(t.iter().cloned().collect::<Vec<_>>(), expected);
     assert_eq!(t.into_iter().collect::<Vec<_>>(), expected);
 }
+
+#[test]
+fn get_best() {
+    let keys = ["sugar", "suggest", "super", "suggestion", "superhero", "suggests", "sugars"];
+    let vals = 0..8;
+
+    let mut t: PTreeMap<_, _> = keys.into_iter().zip(vals).collect();
+
+    assert_eq!(t.get_best("suggester").unwrap().0, KeyMask::new(&"suggest"));
+    assert_eq!(t.get_best("superheroes").unwrap().0, KeyMask::new(&"superhero"));
+    assert_eq!(t.get_best("sucralose"), None);
+
+    t.insert("", 8);
+
+    assert_eq!(t.get_best("sucralose").unwrap().0, KeyMask::new(&""));
+}

@@ -101,6 +101,7 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
                 let new_node_link = Link::new(new_node);
                 add_child_link!(self, new_node_link);
                 node.parent = new_node_link;
+                node.is_right_child = self.common.is_right_parent;
 
                 Self::into_occupied(self.common.tree, new_node_link)
             } else {

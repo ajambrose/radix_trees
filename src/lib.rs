@@ -6,5 +6,7 @@ mod key_trait;
 pub mod ptree;
 
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 pub use crate::key_trait::*;
