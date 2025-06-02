@@ -41,6 +41,15 @@ pub(crate) struct Link<K: TrieKey, V> {
     inner: Option<NonNull<Node<K, V>>>,
 }
 
+// can't derive because K/V don't necessarily implement Eq, even though that doesn't matter
+impl<K: TrieKey, V> PartialEq<Link<K, V>> for Link<K, V> {
+    fn eq(&self, other: &Link<K, V>) -> bool {
+        self.inner.eq(&other.inner)
+    }
+}
+
+impl<K: TrieKey, V> Eq for Link<K, V> {}
+
 impl<K: TrieKey, V> core::fmt::Debug for Link<K, V> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         write!(f, "Link({:#018x})", self.inner.map(|p| p.as_ptr() as usize).unwrap_or(0))
@@ -107,38 +116,51 @@ impl<K: TrieKey, V> Link<K, V> {
     }
 
     /// Walk the tree and obtain the next valid internal node according to preorder traversal.
-    pub(crate) fn next(self) -> Self {
+    pub(crate) fn next(self, end: Self) -> Self {
         if let Some(n) = self.get() {
             if !n.left.is_null() {
                 n.left
             } else if !n.right.is_null() {
                 n.right
             } else {
+                if self == end {
+                    return Self::null();
+                }
                 let mut curr = n;
                 let mut parent = n.parent;
 
-                while let Some(p) = parent.get() {
-                    if !curr.is_right_child && !p.right.is_null() {
+                loop {
+                    if parent == end {
+                        if curr.is_right_child {
+                            return Self::null();
+                        }
+                        // not possible to walk up through the root without being the right child,
+                        // so it must not be null
+                        let p = parent.get().expect("root node is a right child");
                         return p.right;
+                    } else {
+                        let p = parent.get().expect("reached end before root");
+                        if !curr.is_right_child && !p.right.is_null() {
+                            return p.right;
+                        }
+                        curr = p;
+                        parent = p.parent;
                     }
-                    curr = p;
-                    parent = p.parent;
                 }
-                Link::null()
             }
         } else {
-            Link::null()
+            Self::null()
         }
     }
 
     /// Walk the tree and obtain the next valid data node according to preorder traversal.
-    pub(crate) fn next_val(self) -> Self {
-        let mut curr = self.next();
+    pub(crate) fn next_val(self, end: Self) -> Self {
+        let mut curr = self.next(end);
         while let Some(n) = curr.get() {
             if n.val.is_some() {
                 return curr;
             } else {
-                curr = curr.next();
+                curr = curr.next(end);
             }
         }
         Self::null()

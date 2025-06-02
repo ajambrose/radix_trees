@@ -171,3 +171,24 @@ fn get_best() {
 
     assert_eq!(t.get_best("sucralose").unwrap().0, KeyMask::new(&""));
 }
+
+#[test]
+fn iter_suffixes() {
+    let keys = ["sugar", "suggest", "super", "suggestion", "superhero", "suggests", "sugars", ""];
+    let vals = 0..8;
+
+    let t: PTreeMap<_, _> = keys.into_iter().zip(vals).collect();
+
+    let v: Vec<_> = t.iter_suffixes("sug", false).map(|(km, _)| **km.key()).collect();
+    assert_eq!(v, ["sugar", "sugars", "suggest", "suggestion", "suggests"]);
+    let v: Vec<_> = t.iter_suffixes("suggest", false).map(|(km, _)| **km.key()).collect();
+    assert_eq!(v, ["suggestion", "suggests"]);
+    let v: Vec<_> = t.iter_suffixes("super", true).map(|(km, _)| **km.key()).collect();
+    assert_eq!(v, ["super", "superhero"]);
+    let v: Vec<_> = t.iter_suffixes("", false).map(|(km, _)| **km.key()).collect();
+    assert_eq!(v, ["sugar", "sugars", "suggest", "suggestion", "suggests", "super", "superhero"]);
+
+    assert_eq!(t.iter_suffixes("sucralose", true).collect::<Vec<_>>(), vec![]);
+    assert_eq!(t.iter_suffixes("superhero", false).collect::<Vec<_>>(), vec![]);
+    assert_eq!(t.iter_suffixes("suggestions", true).collect::<Vec<_>>(), vec![]);
+}

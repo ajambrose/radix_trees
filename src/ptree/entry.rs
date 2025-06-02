@@ -7,19 +7,17 @@ use core::borrow::Borrow;
 use core::mem;
 
 /// Stores data common between [`VacantEntry`] and [`VacantEntryRef`].
-pub(super) struct VacantEntryCommon<'a, K: TrieKey, V> {
-    tree: &'a mut PTreeMap<K, V>,
-    masklen: u32,
-    branch_masklen: u32,
-    link: Link<K, V>,
+pub(super) struct VacantEntryCommon<K: TrieKey, V> {
+    pub(super) masklen: u32,
+    pub(super) branch_masklen: u32,
+    pub(super) link: Link<K, V>,
     parent: Link<K, V>,
     is_right_child: bool,  // which child link is `link` referencing
     is_right_parent: bool, // for inline insertion, which link does it parent with
 }
 
-impl<'a, K: TrieKey, V> VacantEntryCommon<'a, K, V> {
+impl<K: TrieKey, V> VacantEntryCommon<K, V> {
     pub(super) fn new(
-        tree: &'a mut PTreeMap<K, V>,
         masklen: u32,
         branch_masklen: u32,
         link: Link<K, V>,
@@ -27,19 +25,24 @@ impl<'a, K: TrieKey, V> VacantEntryCommon<'a, K, V> {
         is_right_child: bool,
         is_right_parent: bool,
     ) -> Self {
-        Self { tree, masklen, branch_masklen, link, parent, is_right_child, is_right_parent }
+        Self { masklen, branch_masklen, link, parent, is_right_child, is_right_parent }
     }
 }
 
 /// A handle to a vacant entry in a [`PTreeMap`]. Part of [`Entry`].
 pub struct VacantEntry<'a, K: TrieKey, V> {
-    common: VacantEntryCommon<'a, K, V>,
+    tree: &'a mut PTreeMap<K, V>,
     key: K,
+    common: VacantEntryCommon<K, V>,
 }
 
 impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
-    pub(super) fn new(key: K, common: VacantEntryCommon<'a, K, V>) -> Self {
-        Self { common, key }
+    pub(super) fn new(
+        tree: &'a mut PTreeMap<K, V>,
+        key: K,
+        common: VacantEntryCommon<K, V>,
+    ) -> Self {
+        Self { tree, key, common }
     }
 
     /// Get a reference to the key that would be used when inserting a value.
@@ -68,7 +71,7 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
                     *c = $Link;
                 } else {
                     assert!($Self.common.is_right_child); // root node always points "right"
-                    $Self.common.tree.root = $Link;
+                    $Self.tree.root = $Link;
                 }
             };
         }
@@ -79,7 +82,7 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
                 // insert data at what used to be a branch node
                 assert!(node.val.is_none());
                 node.val = Some(Box::new((self.key, val)));
-                Self::into_occupied(self.common.tree, self.common.link)
+                Self::into_occupied(self.tree, self.common.link)
             } else if self.common.masklen <= self.common.branch_masklen {
                 // insert the value in-between node and parent, with node as a single child
                 let (left, right) = if self.common.is_right_parent {
@@ -103,7 +106,7 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
                 node.parent = new_node_link;
                 node.is_right_child = self.common.is_right_parent;
 
-                Self::into_occupied(self.common.tree, new_node_link)
+                Self::into_occupied(self.tree, new_node_link)
             } else {
                 // create a new branch node with the new node and this existing node as children
                 let new_branch = Box::new(Node {
@@ -145,7 +148,7 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
                     new_branch.left
                 };
 
-                Self::into_occupied(self.common.tree, link)
+                Self::into_occupied(self.tree, link)
             }
         } else {
             // parent has an empty link that we can populate here
@@ -156,7 +159,7 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
                 self.common.is_right_child,
             )));
             add_child_link!(self, link);
-            Self::into_occupied(self.common.tree, link)
+            Self::into_occupied(self.tree, link)
         }
     }
 
@@ -172,13 +175,18 @@ impl<'a, K: TrieKey, V> VacantEntry<'a, K, V> {
 /// Unlike [`VacantEntry`], the contained key is a reference type, and is only converted
 /// to an owned value when calling one of the insertion functions.
 pub struct VacantEntryRef<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> {
-    common: VacantEntryCommon<'a, K, V>,
+    tree: &'a mut PTreeMap<K, V>,
     key: &'b Q,
+    common: VacantEntryCommon<K, V>,
 }
 
 impl<'a, 'b, K: TrieKey, Q: TrieKey + Equivalent<K>, V> VacantEntryRef<'a, 'b, K, Q, V> {
-    pub(super) fn new(key: &'b Q, common: VacantEntryCommon<'a, K, V>) -> Self {
-        Self { common, key }
+    pub(super) fn new(
+        tree: &'a mut PTreeMap<K, V>,
+        key: &'b Q,
+        common: VacantEntryCommon<K, V>,
+    ) -> Self {
+        Self { tree, key, common }
     }
 
     /// Get a reference to the key that would be used when inserting a value.
@@ -210,7 +218,7 @@ where
     &'b Q: Into<K>,
 {
     fn from(value: VacantEntryRef<'a, 'b, K, Q, V>) -> Self {
-        Self { key: value.key.into(), common: value.common }
+        Self { key: value.key.into(), common: value.common, tree: value.tree }
     }
 }
 

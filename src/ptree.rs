@@ -63,8 +63,10 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
     /// Gets the given key/mask length's corresponding entry in the map for in-place manipulation.
     pub fn entry_exact(&mut self, km: KeyMask<K>) -> Entry<K, V> {
         let (key, masklen) = km.take();
-        self.entry_common(key.key_bytes(), masklen)
-            .map_or_else(|common| Entry::Vacant(VacantEntry::new(key, common)), Entry::Occupied)
+        match self.entry_common(key.key_bytes(), masklen) {
+            EntryCommon::Occupied(link) => Entry::Occupied(OccupiedEntry::new(self, link)),
+            EntryCommon::Vacant(common) => Entry::Vacant(VacantEntry::new(self, key, common)),
+        }
     }
 
     /// Gets the given key's corresponding entry by reference in the map for in-place manipulation.
@@ -81,10 +83,10 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
         km: KeyMask<&'b Q>,
     ) -> EntryRef<'a, 'b, K, Q, V> {
         let (key, masklen) = km.take();
-        self.entry_common(key.key_bytes(), masklen).map_or_else(
-            |common| EntryRef::Vacant(VacantEntryRef::new(key, common)),
-            EntryRef::Occupied,
-        )
+        match self.entry_common(key.key_bytes(), masklen) {
+            EntryCommon::Occupied(link) => EntryRef::Occupied(OccupiedEntry::new(self, link)),
+            EntryCommon::Vacant(common) => EntryRef::Vacant(VacantEntryRef::new(self, key, common)),
+        }
     }
 
     /// Returns a reference to the value corresponding to the key.
@@ -255,22 +257,71 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
 
     /// An iterator visiting all [`KeyMask`]-value pairs in lexical order.
     pub fn iter(&self) -> Iter<K, V> {
-        Iter { curr: self.root, len: self.len, _pd: PhantomData }
+        Iter { curr: self.root, end: self.root, len: self.len, _pd: PhantomData }
     }
 
     /// An iterator visiting all [`KeyMask`]-value pairs in lexical order, with mutable references to the values.
     pub fn iter_mut(&mut self) -> IterMut<K, V> {
-        IterMut { curr: self.root, len: self.len, _pd: PhantomData }
+        IterMut { curr: self.root, end: self.root, len: self.len, _pd: PhantomData }
     }
+
+    /// An iterator visiting all [`KeyMask`]-value pairs which are suffixes of the provided key
+    /// in lexical order.
+    ///
+    /// If `include_exact` is set to `true`, and the provided key has an exact match in the [`PTreeMap`],
+    /// then it will be included in the iterator.
+    pub fn iter_suffixes<Q: TrieKey + Equivalent<K>>(
+        &self,
+        key: Q,
+        include_exact: bool,
+    ) -> IterSuffixes<'_, K, V> {
+        self.iter_suffixes_masklen(KeyMask::new(key), include_exact)
+    }
+
+    /// An iterator visiting all [`KeyMask`]-value pairs which are suffixes of the provided key/mask length
+    /// in lexical order.
+    ///
+    /// If `include_exact` is set to `true`, and the provided key / mask has an exact match in the [`PTreeMap`],
+    /// then it will be included in the iterator.
+    pub fn iter_suffixes_masklen<Q: TrieKey + Equivalent<K>>(
+        &self,
+        km: KeyMask<Q>,
+        include_exact: bool,
+    ) -> IterSuffixes<'_, K, V> {
+        let (key, masklen) = km.take();
+        match self.entry_common(key.key_bytes(), masklen) {
+            EntryCommon::Occupied(link) => {
+                // found an exact match, include it if requested otherwise step to the next value
+                // either way, no additional work to do
+                if include_exact {
+                    IterSuffixes::new(link, link)
+                } else {
+                    IterSuffixes::new(link.next_val(link), link)
+                }
+            }
+            EntryCommon::Vacant(common) => {
+                if common.link.is_null() || common.masklen > common.branch_masklen {
+                    // child subtree is nonexistent
+                    IterSuffixes::new(Link::null(), Link::null())
+                } else {
+                    // backtrack gave us a parent that is a prefix of the requested key/mask, and a child that
+                    // is a suffix. So, the child is the parent of the subtree containing all existing suffixes
+                    IterSuffixes::new(common.link, common.link)
+                }
+            }
+        }
+    }
+}
+
+enum EntryCommon<K: TrieKey, V> {
+    Occupied(Link<K, V>),
+    Vacant(VacantEntryCommon<K, V>),
 }
 
 // Private API
 impl<K: TrieKey, V> PTreeMap<K, V> {
-    fn entry_common(
-        &mut self,
-        key: &[u8],
-        masklen: u32,
-    ) -> Result<OccupiedEntry<'_, K, V>, VacantEntryCommon<'_, K, V>> {
+    fn entry_common(&self, key: &[u8], masklen: u32) -> EntryCommon<K, V> {
+        use EntryCommon as E;
         let (mut curr, mut parent) = self.descend(key, masklen);
 
         let (branch_masklen, right) = if let Some(node) = curr.get() {
@@ -279,7 +330,7 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
 
             if node.masklen == masklen && branch_masklen == masklen {
                 // exact match
-                return Ok(OccupiedEntry::new(self, curr));
+                return E::Occupied(curr);
             }
 
             // prepare for backtrack
@@ -293,8 +344,7 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
             if branch_masklen >= p.masklen {
                 // simple case - we walked off the tree and should insert a leaf at that spot
                 let is_right_child = branch_bit(key, p.masklen);
-                return Err(VacantEntryCommon::new(
-                    self,
+                return E::Vacant(VacantEntryCommon::new(
                     masklen,
                     masklen,
                     curr,
@@ -310,8 +360,7 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
                 (branch_masklen, right)
             }
         } else {
-            return Err(VacantEntryCommon::new(
-                self,
+            return E::Vacant(VacantEntryCommon::new(
                 masklen,
                 masklen,
                 Link::null(),
@@ -331,8 +380,7 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
             }
         }
 
-        Err(VacantEntryCommon::new(
-            self,
+        E::Vacant(VacantEntryCommon::new(
             masklen,
             branch_masklen,
             curr,

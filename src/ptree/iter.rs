@@ -138,6 +138,7 @@ impl<'a, K: TrieKey, V> IntoIterator for &'a PTreeMap<K, V> {
 /// Created by calling [`PTreeMap::iter`].
 pub struct Iter<'a, K: TrieKey, V> {
     pub(super) curr: Link<K, V>,
+    pub(super) end: Link<K, V>,
     pub(super) len: usize,
     pub(super) _pd: PhantomData<&'a (K, V)>,
 }
@@ -178,7 +179,7 @@ impl<'a, K: TrieKey, V> Iterator for Iter<'a, K, V> {
         let mut curr = self.curr.get().expect("iterator length matches populated nodes");
 
         let kv = curr.val.as_deref().unwrap_or_else(|| {
-            self.curr = self.curr.next_val();
+            self.curr = self.curr.next_val(self.end);
             curr = self.curr.get().expect("iterator length matches populated nodes");
             curr.val.as_deref().expect("nonzero iterator length should find a node")
         });
@@ -188,7 +189,7 @@ impl<'a, K: TrieKey, V> Iterator for Iter<'a, K, V> {
         self.len -= 1;
 
         if self.len != 0 {
-            self.curr = self.curr.next_val();
+            self.curr = self.curr.next_val(self.end);
         }
 
         ret
@@ -207,6 +208,46 @@ impl<K: TrieKey, V> ExactSizeIterator for Iter<'_, K, V> {
 
 impl<K: TrieKey, V> FusedIterator for Iter<'_, K, V> {}
 
+/// An iterator over the suffixes of a provided key in a [`PTreeMap`] in lexical order.
+///
+/// Created by calling [`PTreeMap::iter_suffixes`].
+pub struct IterSuffixes<'a, K: TrieKey, V> {
+    curr: Link<K, V>,
+    end: Link<K, V>,
+    _pd: PhantomData<&'a (K, V)>,
+}
+
+impl<'a, K: TrieKey, V> IterSuffixes<'a, K, V> {
+    pub(super) fn new(start: Link<K, V>, end: Link<K, V>) -> Self {
+        // it's impossible to lazily construct this iterator in constant time due to the
+        // lookup for the starting key/mask, so might as well simplify the iterator logic
+        // and start it at the first actual data node.
+        let curr = if let Some(node) = start.get() {
+            if node.val.is_some() { start } else { start.next_val(end) }
+        } else {
+            Link::null()
+        };
+        Self { curr, end, _pd: PhantomData }
+    }
+}
+
+impl<'a, K: TrieKey, V> Iterator for IterSuffixes<'a, K, V> {
+    type Item = (KeyMask<&'a K>, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(node) = self.curr.get() {
+            let kv = node.val.as_deref().expect("curr has a value");
+            self.curr = self.curr.next_val(self.end);
+            // SAFETY: The presence of this key/mask in the trie means that it was already validated
+            Some((unsafe { KeyMask::new_unchecked(&kv.0, node.masklen) }, &kv.1))
+        } else {
+            None
+        }
+    }
+}
+
+impl<K: TrieKey, V> FusedIterator for IterSuffixes<'_, K, V> {}
+
 impl<'a, K: TrieKey, V> IntoIterator for &'a mut PTreeMap<K, V> {
     type IntoIter = IterMut<'a, K, V>;
     type Item = (KeyMask<&'a K>, &'a mut V);
@@ -221,6 +262,7 @@ impl<'a, K: TrieKey, V> IntoIterator for &'a mut PTreeMap<K, V> {
 /// Created by [`PTreeMap::iter_mut`].
 pub struct IterMut<'a, K: TrieKey, V> {
     pub(super) curr: Link<K, V>,
+    pub(super) end: Link<K, V>,
     pub(super) len: usize,
     pub(super) _pd: PhantomData<&'a mut (K, V)>,
 }
@@ -237,7 +279,7 @@ impl<'a, K: TrieKey, V> Iterator for IterMut<'a, K, V> {
         let kv = if curr.val.is_some() {
             curr.val.as_deref_mut().unwrap()
         } else {
-            self.curr = self.curr.next_val();
+            self.curr = self.curr.next_val(self.end);
             curr = self.curr.get_mut().expect("iterator length matches populated nodes");
             curr.val.as_deref_mut().expect("nonzero iterator length should find a node")
         };
@@ -247,7 +289,7 @@ impl<'a, K: TrieKey, V> Iterator for IterMut<'a, K, V> {
         self.len -= 1;
 
         if self.len != 0 {
-            self.curr = self.curr.next_val();
+            self.curr = self.curr.next_val(self.end);
         }
 
         ret
