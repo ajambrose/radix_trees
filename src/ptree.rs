@@ -56,12 +56,12 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
     }
 
     /// Gets the given key's corresponding entry in the map for in-place manipulation.
-    pub fn entry(&mut self, key: K) -> Entry<K, V> {
+    pub fn entry(&mut self, key: K) -> Entry<'_, K, V> {
         self.entry_exact(KeyMask::new(key))
     }
 
     /// Gets the given key/mask length's corresponding entry in the map for in-place manipulation.
-    pub fn entry_exact(&mut self, km: KeyMask<K>) -> Entry<K, V> {
+    pub fn entry_exact(&mut self, km: KeyMask<K>) -> Entry<'_, K, V> {
         let (key, masklen) = km.take();
         match self.entry_common(key.key_bytes(), masklen) {
             EntryCommon::Occupied(link) => Entry::Occupied(OccupiedEntry::new(self, link)),
@@ -256,12 +256,12 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
     // }
 
     /// An iterator visiting all [`KeyMask`]-value pairs in lexical order.
-    pub fn iter(&self) -> Iter<K, V> {
+    pub fn iter(&self) -> Iter<'_, K, V> {
         Iter { curr: self.root, end: self.root, len: self.len, _pd: PhantomData }
     }
 
     /// An iterator visiting all [`KeyMask`]-value pairs in lexical order, with mutable references to the values.
-    pub fn iter_mut(&mut self) -> IterMut<K, V> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut { curr: self.root, end: self.root, len: self.len, _pd: PhantomData }
     }
 
