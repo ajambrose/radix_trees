@@ -108,6 +108,11 @@ impl<K: TrieKey> KeyMask<K> {
         Self { key, masklen }
     }
 
+    pub fn as_ref(&self) -> KeyMask<&K> {
+        // SAFETY: Reinterpreting the key as a reference to the key does not change masklen validity.
+        unsafe { KeyMask::new_unchecked(self.key(), self.masklen) }
+    }
+
     /// Return a reference to the stored key.
     pub fn key(&self) -> &K {
         &self.key
