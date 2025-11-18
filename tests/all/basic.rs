@@ -3,6 +3,20 @@ use zerocopy::byteorder::big_endian::U32;
 extern crate std;
 
 #[test]
+fn insert_twice() {
+    let mut t = PTreeMap::new();
+    assert!(t.insert(1, 1).is_none());
+    assert_eq!(t.insert(1, 2), Some(1));
+}
+
+#[test]
+fn insert_masked_twice() {
+    let mut t = PTreeMap::new();
+    assert!(t.insert_exact(KeyMask::new_exact(0u64, 17).unwrap(), 1).is_none());
+    assert_eq!(t.insert_exact(KeyMask::new_exact(0u64, 17).unwrap(), 2), Some(1));
+}
+
+#[test]
 fn default_iter() {
     let t = PTreeMap::<u32, u32>::default();
     let i = t.iter();

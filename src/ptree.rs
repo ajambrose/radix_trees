@@ -326,15 +326,16 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
 
         let (branch_masklen, right) = if let Some(node) = curr.get() {
             let val = node.val.as_deref().unwrap();
-            let branch_masklen = branch_masklen(val.0.key_bytes(), key);
 
-            if node.masklen == masklen && branch_masklen == masklen {
+            // TODO - branch_masklen should take masklen, to avoid over-comparing keys
+            let branch_masklen = core::cmp::min(masklen, branch_masklen(val.0.key_bytes(), key));
+
+            if node.masklen == masklen && branch_masklen >= masklen {
                 // exact match
                 return E::Occupied(curr);
             }
 
             // prepare for backtrack
-            let branch_masklen = core::cmp::min(masklen, branch_masklen);
             let right = branch_bit(val.0.key_bytes(), branch_masklen);
             (branch_masklen, right)
         } else if let Some(p) = parent.get() {
