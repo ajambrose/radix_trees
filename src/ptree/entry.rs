@@ -276,24 +276,35 @@ impl<'a, K: TrieKey, V> OccupiedEntry<'a, K, V> {
         let km = unsafe { KeyMask::new_unchecked(k, node.masklen) };
         if !node.left.is_null() {
             if node.right.is_null() {
-                node.replace(node.left);
+                node.unlink_branch(node.left, &mut self.tree.root);
+                self.link.free();
             }
         } else if !node.right.is_null() {
-            node.replace(node.right);
-        } else {
-            let parent = node.parent;
+            node.unlink_branch(node.right, &mut self.tree.root);
             self.link.free();
-            if let Some(parent) = parent.get_mut() {
+        } else {
+            let is_right_child = node.is_right_child;
+            let parent_link = node.parent;
+            if let Some(parent) = parent_link.get_mut() {
+                if is_right_child {
+                    assert!(!core::mem::replace(&mut parent.right, Link::null()).is_null());
+                } else {
+                    assert!(!core::mem::replace(&mut parent.left, Link::null()).is_null());
+                }
                 if parent.val.is_none() {
                     if !parent.left.is_null() {
                         assert!(parent.right.is_null());
-                        parent.replace(parent.left);
+                        parent.unlink_branch(parent.left, &mut self.tree.root);
                     } else if !parent.right.is_null() {
-                        parent.replace(parent.right);
+                        parent.unlink_branch(parent.right, &mut self.tree.root);
                     } else {
                         unreachable!()
                     }
+                    parent_link.free();
                 }
+            } else {
+                self.tree.root = Link::null();
+                self.link.free();
             }
         }
         self.tree.len -= 1;

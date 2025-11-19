@@ -23,13 +23,21 @@ impl<K: TrieKey, V> Node<K, V> {
         Self { val, masklen, left: Link::null(), right: Link::null(), parent, is_right_child }
     }
 
-    /// Swap data with another node, fix up links, and free the other node.
-    pub(crate) fn replace(&mut self, other_link: Link<K, V>) {
-        let other = other_link.get_mut().unwrap();
-        core::mem::swap(self, other);
-        self.parent = other.parent;
-        self.is_right_child = other.is_right_child;
-        other_link.free();
+    /// Collapse a branch node that has exactly one child
+    pub(crate) fn unlink_branch(&mut self, child: Link<K, V>, root: &mut Link<K, V>) {
+        let c = child.get_mut().unwrap();
+        c.parent = self.parent;
+        c.is_right_child = self.is_right_child;
+        if let Some(p) = self.parent.get_mut() {
+            if self.is_right_child {
+                p.right = child;
+            } else {
+                p.left = child;
+            }
+        } else {
+            assert!(self.is_right_child);
+            *root = child;
+        }
     }
 }
 

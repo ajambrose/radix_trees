@@ -206,3 +206,23 @@ fn iter_suffixes() {
     assert_eq!(t.iter_suffixes("superhero", false).collect::<Vec<_>>(), vec![]);
     assert_eq!(t.iter_suffixes("suggestions", true).collect::<Vec<_>>(), vec![]);
 }
+
+#[test]
+fn branch_merge_root() {
+    let keys = [vec![0u8; 0], vec![0; 1], vec![0; 2]];
+    let masks = [0, 6, 12];
+    let vals = 0..3;
+
+    let mut expected: Vec<_> = keys
+        .into_iter()
+        .zip(masks)
+        .map(|(k, m)| KeyMask::new_exact(k, m).unwrap())
+        .zip(vals)
+        .collect();
+
+    let mut t: PTreeMap<_, _> = expected.iter().cloned().collect();
+
+    expected.remove(0);
+    t.remove(vec![]);
+    assert_eq!(expected, t.into_iter().collect::<Vec<_>>());
+}
