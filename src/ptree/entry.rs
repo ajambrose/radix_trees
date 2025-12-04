@@ -304,8 +304,8 @@ impl<'a, K: TrieKey, V> OccupiedEntry<'a, K, V> {
                 }
             } else {
                 self.tree.root = Link::null();
-                self.link.free();
             }
+            self.link.free();
         }
         self.tree.len -= 1;
         (km, v)
