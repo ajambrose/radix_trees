@@ -123,6 +123,13 @@ impl<K: TrieKey> KeyMask<K> {
         self.masklen
     }
 
+    /// Calculate the first bit index where the two provided `KeyMask`s differ.
+    ///
+    /// If there are no differences, returns the length of the shorter key in bits.
+    pub fn branch_masklen<B: TrieKey + Deref<Target = K>>(&self, other: &KeyMask<B>) -> u32 {
+        branch_masklen(self.key.key_bytes(), other.key.key_bytes())
+    }
+
     /// Consume the [`KeyMask`], returning the held key and mask length.
     pub fn take(self) -> (K, u32) {
         (self.key, self.masklen)

@@ -1,4 +1,5 @@
 #![no_main]
+#![feature(btree_cursors)]
 
 use arbitrary::Arbitrary;
 use libfuzzer_sys::fuzz_target;
@@ -37,22 +38,24 @@ impl<'a> Arbitrary<'a> for ArbitraryKey<'a> {
 
     #[inline]
     fn size_hint(_: usize) -> (usize, Option<usize>) {
+        // 2 bytes for key length + 2 bytes for zero-pad length + 4 bytes for masklen = 8 lower bound
+        // 4096 max total key length + 8 bytes = 5004 upper bound
         (8, Some(5004))
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Arbitrary)]
 enum Op<'a> {
     Insert(ArbitraryKey<'a>, u64),
     Remove(ArbitraryKey<'a>),
     Get(ArbitraryKey<'a>),
+    Suffixes(ArbitraryKey<'a>, bool),
 }
 
 fuzz_target!(|ops: Vec<Op>| {
     let mut tree = PTreeMap::new();
     let mut expected = BTreeMap::new();
-    // fuzzed code goes here
+
     for op in ops {
         match op {
             Op::Insert(key, val) => {
@@ -66,6 +69,26 @@ fuzz_target!(|ops: Vec<Op>| {
             Op::Get(key) => {
                 let km = key.create_key_mask();
                 assert_eq!(expected.get(&km), tree.get_exact(km));
+            }
+            Op::Suffixes(key, include_exact) => {
+                use std::ops::Bound;
+                let start_km = key.create_key_mask();
+                let op = if include_exact { Bound::Included } else { Bound::Excluded };
+                let mut start = expected.lower_bound(op(&start_km));
+                let btree_iter = std::iter::from_fn(|| {
+                    start.next().map(|(k, v)| (k.as_ref(), v)).and_then(|(km, v)| {
+                        if start_km.masklen() <= km.masklen()
+                            && start_km.branch_masklen(&km) >= start_km.masklen()
+                        {
+                            Some((km, v))
+                        } else {
+                            None
+                        }
+                    })
+                });
+                assert!(
+                    tree.iter_suffixes_masklen(start_km.as_ref(), include_exact).eq(btree_iter)
+                );
             }
         };
     }
