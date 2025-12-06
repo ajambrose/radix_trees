@@ -1,6 +1,6 @@
 [package]
 name = "radix_trees"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Alex Ambrose"]
 categories = ["no-std", "data-structures", "text-processing"]
 description = "Various radix tree (trie) data structures."
