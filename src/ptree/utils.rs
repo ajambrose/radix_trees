@@ -108,6 +108,7 @@ impl<K: TrieKey> KeyMask<K> {
         Self { key, masklen }
     }
 
+    /// Converts from `&KeyMask<K>` to `KeyMask<&K>`.
     pub fn as_ref(&self) -> KeyMask<&K> {
         // SAFETY: Reinterpreting the key as a reference to the key does not change masklen validity.
         unsafe { KeyMask::new_unchecked(self.key(), self.masklen) }
@@ -123,11 +124,20 @@ impl<K: TrieKey> KeyMask<K> {
         self.masklen
     }
 
+    /// Returns `true` if this `KeyMask` is a prefix of the other.
+    pub fn is_prefix_of<B: TrieKey + Deref<Target = K>>(&self, other: &KeyMask<B>) -> bool {
+        self.masklen <= other.masklen && self.branch_masklen(other) >= self.masklen
+    }
+
     /// Calculate the first bit index where the two provided `KeyMask`s differ.
     ///
     /// If there are no differences, returns the length of the shorter key in bits.
     pub fn branch_masklen<B: TrieKey + Deref<Target = K>>(&self, other: &KeyMask<B>) -> u32 {
-        branch_masklen(self.key.key_bytes(), other.key.key_bytes())
+        branch_masklen_bounded(
+            self.key.key_bytes(),
+            other.key.key_bytes(),
+            core::cmp::min(self.masklen, other.masklen),
+        )
     }
 
     /// Consume the [`KeyMask`], returning the held key and mask length.
@@ -156,7 +166,11 @@ impl<K: TrieKey> KeyMask<K> {
 
 /// Compare two key / masklen combinations for equality. Used by [`PartialEq`].
 pub(crate) fn key_eq(lhs: &[u8], lhs_mask: u32, rhs: &[u8], rhs_mask: u32) -> bool {
-    if lhs_mask == rhs_mask { branch_masklen(lhs, rhs) >= lhs_mask } else { false }
+    if lhs_mask == rhs_mask {
+        branch_masklen_bounded(lhs, rhs, lhs_mask) == lhs_mask
+    } else {
+        false
+    }
 }
 
 /// Two [`KeyMask`]s are equal if and only if the mask lengths are equal,
@@ -257,14 +271,26 @@ pub(crate) fn branch_bit(key: &[u8], bit_idx: u32) -> bool {
 ///
 /// If there are no differences, returns the length of the shorter key in bits.
 pub(crate) fn branch_masklen(a: &[u8], b: &[u8]) -> u32 {
-    let Some((idx, (b1, b2))) = a.iter().zip(b).enumerate().find(|(_, (a, b))| a != b) else {
+    branch_masklen_bounded(a, b, (core::cmp::max(a.len(), b.len()) as u32) << 3)
+}
+
+/// Calculate the first bit index where the two provided keys differ,
+/// up to the provided `max_masklen`.
+///
+/// If there are no differences, returns the shorter of `max_masklen` and the shorter key, in bits.
+pub(crate) fn branch_masklen_bounded(a: &[u8], b: &[u8], max_masklen: u32) -> u32 {
+    let masklen = if let Some((idx, (b1, b2))) =
+        a.iter().zip(b).take((max_masklen as usize + 7) >> 3).enumerate().find(|(_, (a, b))| a != b)
+    {
+        let n = b1 ^ b2;
         // conversion is safe as any keys passed here were already validated
-        return (core::cmp::min(a.len(), b.len()) as u32) << 3;
+        n.leading_zeros() + (idx << 3) as u32
+    } else {
+        // conversion is safe as any keys passed here were already validated
+        (core::cmp::min(a.len(), b.len()) as u32) << 3
     };
 
-    let n = b1 ^ b2;
-    // conversion is safe as any keys passed here were already validated
-    n.leading_zeros() + (idx << 3) as u32
+    core::cmp::min(masklen, max_masklen)
 }
 
 #[cfg(test)]

@@ -6,7 +6,7 @@ mod node;
 mod utils;
 
 use self::node::Link;
-use self::utils::{branch_bit, branch_masklen, key_eq};
+use self::utils::{branch_bit, branch_masklen_bounded, key_eq};
 use crate::{Equivalent, TrieKey};
 use core::marker::PhantomData;
 
@@ -133,7 +133,7 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
         let branch_masklen = if let Some(mut node) = curr.get() {
             loop {
                 if let Some(val) = node.val.as_deref() {
-                    break branch_masklen(key.key_bytes(), val.0.key_bytes());
+                    break branch_masklen_bounded(key.key_bytes(), val.0.key_bytes(), masklen);
                 }
                 curr = node.parent;
                 if let Some(p) = curr.get() {
@@ -146,7 +146,7 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
             // parent above an empty link is guaranteed to have a value
             let val = p.val.as_deref().unwrap();
             curr = parent;
-            branch_masklen(key.key_bytes(), val.0.key_bytes())
+            branch_masklen_bounded(key.key_bytes(), val.0.key_bytes(), masklen)
         } else {
             return None;
         };
@@ -326,9 +326,7 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
 
         let (branch_masklen, right) = if let Some(node) = curr.get() {
             let val = node.val.as_deref().unwrap();
-
-            // TODO - branch_masklen should take masklen, to avoid over-comparing keys
-            let branch_masklen = core::cmp::min(masklen, branch_masklen(val.0.key_bytes(), key));
+            let branch_masklen = branch_masklen_bounded(val.0.key_bytes(), key, masklen);
 
             if node.masklen == masklen && branch_masklen >= masklen {
                 // exact match
@@ -341,7 +339,7 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
         } else if let Some(p) = parent.get() {
             // impossible to walk off the tree without parent having a value
             let val = p.val.as_deref().unwrap();
-            let branch_masklen = branch_masklen(val.0.key_bytes(), key);
+            let branch_masklen = branch_masklen_bounded(val.0.key_bytes(), key, masklen);
             if branch_masklen >= p.masklen {
                 // simple case - we walked off the tree and should insert a leaf at that spot
                 let is_right_child = branch_bit(key, p.masklen);

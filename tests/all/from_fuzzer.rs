@@ -77,3 +77,17 @@ fn remove_leaf() {
     t.remove(vec![255, 28]);
     assert_eq!(expected, t.into_iter().collect::<Vec<_>>());
 }
+
+#[test]
+fn get_best_prefix_none() {
+    let keys = [vec![0u8; 8]];
+    let masks = [32];
+    let vals = 0..1;
+    let t: PTreeMap<_, _> = keys
+        .into_iter()
+        .zip(masks)
+        .map(|(k, m)| KeyMask::new_exact(k, m).unwrap())
+        .zip(vals)
+        .collect();
+    assert!(t.get_best_masklen(KeyMask::new_exact(vec![0u8; 4], 16).unwrap()).is_none());
+}

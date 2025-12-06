@@ -6,6 +6,7 @@ use libfuzzer_sys::fuzz_target;
 use radix_trees::ptree::KeyMask;
 use radix_trees::ptree::PTreeMap;
 use std::collections::BTreeMap;
+use std::ops::Bound;
 
 const MAX_KEY_LEN: u16 = 4096;
 
@@ -49,6 +50,7 @@ enum Op<'a> {
     Insert(ArbitraryKey<'a>, u64),
     Remove(ArbitraryKey<'a>),
     Get(ArbitraryKey<'a>),
+    GetBest(ArbitraryKey<'a>),
     Suffixes(ArbitraryKey<'a>, bool),
 }
 
@@ -70,8 +72,28 @@ fuzz_target!(|ops: Vec<Op>| {
                 let km = key.create_key_mask();
                 assert_eq!(expected.get(&km), tree.get_exact(km));
             }
+            Op::GetBest(key) => {
+                let km = key.create_key_mask();
+                let best_km = match tree.get_best_masklen(km.as_ref()) {
+                    Some((best_km, best_v)) => {
+                        let best_km = KeyMask::clone_borrowed(&best_km);
+                        assert_eq!(expected.get(&best_km).unwrap(), best_v);
+                        best_km
+                    }
+                    None => KeyMask::new(vec![]),
+                };
+
+                if best_km == km {
+                    continue;
+                }
+
+                for (test_km, _) in
+                    expected.range((Bound::Excluded(best_km), Bound::Excluded(km.clone())))
+                {
+                    assert!(!test_km.is_prefix_of(&km.as_ref()));
+                }
+            }
             Op::Suffixes(key, include_exact) => {
-                use std::ops::Bound;
                 let start_km = key.create_key_mask();
                 let op = if include_exact { Bound::Included } else { Bound::Excluded };
                 let mut start = expected.lower_bound(op(&start_km));
