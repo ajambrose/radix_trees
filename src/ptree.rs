@@ -12,7 +12,7 @@ use core::marker::PhantomData;
 
 pub use self::entry::*;
 pub use self::iter::*;
-pub use self::utils::{KeyMask, MAX_KEY_LEN_BYTES, key_masklen_check};
+pub use self::utils::{KeyMask, MAX_KEY_LEN_BYTES};
 
 /// An associative data structure that uses the underlying bit representation of keys
 /// to store and search for values.
@@ -115,6 +115,10 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
         None
     }
 
+    /// Returns a reference to the key-value-pair that best matches the provided key.
+    ///
+    /// The best match key is one that is a proper prefix of the provided key,
+    /// with the longest mask length, and may be an exact match.
     pub fn get_best<Q: TrieKey + Equivalent<K>>(&self, key: Q) -> Option<(KeyMask<&K>, &V)> {
         self.get_best_masklen(KeyMask::new(key))
     }

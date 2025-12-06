@@ -1,6 +1,9 @@
 use super::TrieKey;
 use zerocopy::{Immutable, IntoBytes};
 
+// This cfg is redundant, but it enables displaying that this macro requires the zerocopy feature
+// in generated documentation.
+#[cfg(feature = "zerocopy")]
 #[macro_export]
 /// Safely implement [`TrieKey`] for a type which already implements [`IntoBytes`] + [`Immutable`].
 ///

@@ -17,6 +17,10 @@ mod unsafe_trait;
 /// When `zerocopy` is not included, only basic sized primitives (plus slices and arrays of primitives)
 /// are implemented.
 pub trait TrieKey {
+    /// Interpret this type as a sequence of bytes.
+    ///
+    /// All bytes in the returned slice must be readable and must not differ during subsequent
+    /// calls by the same immutable object.
     fn key_bytes(&self) -> &[u8];
 }
 

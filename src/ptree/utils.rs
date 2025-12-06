@@ -103,7 +103,6 @@ impl<K: TrieKey> KeyMask<K> {
     /// `key`'s length in bytes must not exceed [`MAX_KEY_LEN_BYTES`],
     /// `masklen` must not exceed the number of bits in `key`,
     /// `key` must have no bits set after the specified `masklen`.
-    /// IE, [`key_masklen_check`] must return `true` for the provided inputs.
     pub unsafe fn new_unchecked(key: K, masklen: u32) -> Self {
         Self { key, masklen }
     }
@@ -231,6 +230,9 @@ impl core::fmt::Display for KeyMaskError {
     }
 }
 
+/// Safely computes the length in bits of the provided key.
+///
+/// If the key is longer than the maximum supported key length, returns [`None`].
 fn key_len_bits(key: &[u8]) -> Option<u32> {
     let key_len = key.len();
     if key_len <= MAX_KEY_LEN_BYTES {
@@ -242,7 +244,7 @@ fn key_len_bits(key: &[u8]) -> Option<u32> {
 }
 
 /// Returns [`true`] if the provided key / mask length is valid, otherwise [`false`].
-pub fn key_masklen_check(key: &[u8], masklen: u32) -> bool {
+pub(crate) fn key_masklen_check(key: &[u8], masklen: u32) -> bool {
     let Some(max_mask) = key_len_bits(key) else {
         return false;
     };
