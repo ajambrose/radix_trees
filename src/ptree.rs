@@ -8,6 +8,7 @@ mod utils;
 use self::node::Link;
 use self::utils::{branch_bit, branch_masklen_bounded, key_eq};
 use crate::{Equivalent, TrieKey};
+use core::fmt::Debug;
 use core::marker::PhantomData;
 
 pub use self::entry::*;
@@ -427,6 +428,12 @@ impl<K: TrieKey, V> PTreeMap<K, V> {
             curr = if branch_bit(key, node.masklen) { node.right } else { node.left };
         }
         (curr, parent)
+    }
+}
+
+impl<K: TrieKey + Debug, V: Debug> Debug for PTreeMap<K, V> {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt.debug_map().entries(self).finish()
     }
 }
 
