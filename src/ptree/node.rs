@@ -75,7 +75,7 @@ impl<K: TrieKey, V> Copy for Link<K, V> {}
 impl<K: TrieKey, V> Link<K, V> {
     /// Create a new link from an owned [`Node`].
     pub(crate) fn new(v: Box<Node<K, V>>) -> Self {
-        Self { inner: Some(Box::leak(v).into()) }
+        Self { inner: NonNull::new(Box::into_raw(v)) }
     }
 
     /// Create an empty link.
